@@ -35,7 +35,7 @@ const ART=location.search.indexOf('art')>=0;
 if(ART) document.body.classList.add('art');
 const SAVE_KEY='aura67.profile';
 let state='menu';
-let S={name:'VITO',aura:12340,chips:[1,1,1,1,1,0,0],best:12340,muted:false};
+let S={name:'IEEP',aura:12340,chips:[1,1,1,1,1,0,0],best:12340,muted:false};
 let editing=false, caretOn=true, hover=null, pressed=null, toastTimer=0, nameBuf='';
 
 const BTN={
@@ -47,7 +47,9 @@ const BTN={
 
 function load(){
   try{
-    const n=localStorage.getItem('67nome'); if(n) S.name=n;
+    let n=localStorage.getItem('67nome');
+    if(n==='VITO'){ localStorage.setItem('67nome','IEEP'); localStorage.removeItem('67save.VITO'); n='IEEP'; }
+    if(n) S.name=n;
     const a=parseInt(localStorage.getItem('67aura')||'0',10); S.aura=isNaN(a)?0:a;
     const m=localStorage.getItem('67mute'); if(m==='1') S.muted=true;
     for(let i=0;i<7;i++) S.chips[i]= localStorage.getItem('67c'+(i+1))==='1'?1:0;
