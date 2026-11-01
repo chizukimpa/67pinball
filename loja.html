@@ -193,7 +193,7 @@ document.getElementById('c').addEventListener('pointerdown',e=>{
   if(y>396){
     var destino = (x<125?'menu':'mesa');
     if(window.parent && window.parent.go){ window.parent.go(destino); }
-    else { location.href = (x<125?'index.html':'mesa.html'); }
+    else { location.href = (x<125?'menu.html':'mesa.html'); }
     return;
   }
   if(x>148&&x<228&&y>352&&y<382){ comprar(); return; }

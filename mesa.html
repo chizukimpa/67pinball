@@ -899,13 +899,13 @@ document.getElementById('c').addEventListener('pointerdown',e=>{
     if(py>136&&py<178){ paused=false; return; }
     if(py>180&&py<222){ config=true; return; }
     if(py>224&&py<266){ paused=false; newGame(); return; }
-    if(py>268&&py<310){ if(window.parent&&window.parent.go){window.parent.go('menu')}else{location.href='index.html'}; return; }
+    if(py>268&&py<310){ if(window.parent&&window.parent.go){window.parent.go('menu')}else{location.href='menu.html'}; return; }
     return;
   }
   if(px>226&&py<18){ paused=true; return; }
   if(state==='over'){
     if(py>200&&py<238){ newGame(); return; }
-    if(py>238&&py<280){ if(window.parent&&window.parent.go){window.parent.go('menu')}else{location.href='index.html'}; return; }
+    if(py>238&&py<280){ if(window.parent&&window.parent.go){window.parent.go('menu')}else{location.href='menu.html'}; return; }
     return;
   }
   if(state==='ready'){launch();return;}
