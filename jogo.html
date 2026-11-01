@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SIX SEVEN PINBALL</title>
+<style>
+ html,body{margin:0;height:100%;background:#07060d;overflow:hidden}
+ iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:none}
+ iframe.on{display:block}
+</style></head>
+<body>
+<iframe id="s-menu" class="on" src="index.html"></iframe>
+<iframe id="s-mesa" src="mesa.html"></iframe>
+<iframe id="s-loja" src="loja.html"></iframe>
+<audio id="bgm" src="music.mp3" loop preload="auto"></audio>
+
+<script>
+/* ---------- troca de telas (sem recarregar, musica continua) ---------- */
+var TELAS = {menu:'s-menu', mesa:'s-mesa', loja:'s-loja'};
+function go(nome){
+  for(var k in TELAS){
+    document.getElementById(TELAS[k]).classList.toggle('on', k === nome);
+  }
+  // avisa a tela para reler aura/fichas do localStorage
+  var fr = document.getElementById(TELAS[nome]);
+  try{ if(fr && fr.contentWindow) fr.contentWindow.postMessage('67refresh', '*'); }catch(e){}
+  // entrou na mesa pelo JOGAR: comeca partida nova (sai da tela de fim de jogo/pausa)
+  if(nome==='mesa'){
+    try{ if(fr && fr.contentWindow) fr.contentWindow.postMessage('67newgame', '*'); }catch(e){}
+  }
+}
+
+/* ---------- musica ---------- */
+var a = document.getElementById('bgm');
+var ac = null, ultimoClique = 0;
+
+function volAtual(){
+  var v = parseFloat(localStorage.getItem('67vol') || '0.5');
+  if(isNaN(v)) v = 0.5;
+  return Math.max(0, Math.min(1, v));
+}
+function estaMudo(){ return localStorage.getItem('67mute') === '1'; }
+
+function tocar(){
+  a.volume = volAtual();
+  var p = a.play();
+  if(p && p.catch){
+    p.catch(function(){
+      /* navegador barrou com som: toca mudo e espera o primeiro gesto */
+      if(!a.muted){
+        a.muted = true;
+        var p2 = a.play();
+        if(p2 && p2.catch) p2.catch(function(){});
+      }
+    });
+  }
+}
+
+/* chamado pelo CONFIG / menu */
+window.setVol = function(val){
+  if(isFinite(val)) a.volume = Math.max(0, Math.min(1, val));
+  a.muted = estaMudo();
+  tocar();
+};
+
+/* posicao salva da faixa */
+var t0 = parseFloat(localStorage.getItem('67musictime') || '0');
+a.addEventListener('loadedmetadata', function(){
+  if(t0 > 0 && isFinite(t0)){ try{ a.currentTime = t0; }catch(e){} }
+  a.volume = volAtual();
+}, {once:true});
+
+/* tenta ja na abertura, com som */
+a.muted = estaMudo();
+tocar();
+[200, 600, 1500, 3000].forEach(function(ms){ setTimeout(tocar, ms); });
+['canplay','canplaythrough','loadeddata'].forEach(function(ev){
+  a.addEventListener(ev, function(){ if(a.paused) tocar(); });
+});
+
+/* sincroniza volume/mute vindos de qualquer tela */
+setInterval(function(){
+  try{ localStorage.setItem('67musictime', String(a.currentTime)); }catch(e){}
+  a.volume = volAtual();
+  a.muted = estaMudo();
+  if(a.paused) tocar();
+}, 800);
+
+/* ---------- gesto do usuario (dentro dos iframes tambem) ---------- */
+function desbloquear(){
+  a.muted = estaMudo();
+  a.volume = volAtual();
+  if(a.paused) tocar();
+}
+function cliqueUI(){
+  if(localStorage.getItem('67sfx') === '0') return;
+  var agora = performance.now();
+  if(agora - ultimoClique < 60) return;
+  ultimoClique = agora;
+  try{
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if(ac.state === 'suspended') ac.resume();
+    var o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'square'; o.frequency.value = 600;
+    g.gain.value = 0.05;
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.06);
+    o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime + 0.07);
+  }catch(e){}
+}
+function ligarGestos(doc){
+  if(!doc || doc.__67ok) return;
+  doc.__67ok = true;
+  doc.addEventListener('pointerdown', function(){ desbloquear(); cliqueUI(); });
+  doc.addEventListener('keydown', desbloquear);
+  doc.addEventListener('touchstart', desbloquear);
+}
+function ligarFrame(fr){
+  try{ ligarGestos(fr.contentDocument); }catch(e){}
+  fr.addEventListener('load', function(){ try{ ligarGestos(fr.contentDocument); }catch(e){} });
+}
+document.querySelectorAll('iframe').forEach(ligarFrame);
+ligarGestos(document);
+</script>
+</body></html>

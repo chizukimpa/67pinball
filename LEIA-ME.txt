@@ -1,0 +1,22 @@
+﻿SIX SEVEN PINBALL - build HTML
+
+COMO ABRIR:
+  Abra jogo.html  <- esta é a entrada do jogo
+  (ele carrega menu, mesa e loja juntos, com a musica unica)
+
+COMO JOGAR:
+1. Digite seu nome e toque em JOGAR
+2. Toque para lancar. Metade esquerda/direita = maos. Espaco/setas no teclado.
+3. Botao de pausa no canto superior direito: voltar, config, reiniciar, menu.
+4. CONFIG: musica, efeitos, vibracao e volume.
+5. Perdeu as 3 bolas: a aura da partida entra na conta.
+6. LOJA: 7 fichas com preco; compra descontando a aura.
+
+Salvo no navegador: 67nome, 67aura, 67c1..67c7, 67mute, 67sfx, 67vol.
+
+Arquivos:
+  jogo.html   -> entrada (menu + mesa + loja)
+  index.html  -> menu (abre sozinho tambem)
+  mesa.html   -> pinball + pausa/config
+  loja.html   -> fichas
+  music.mp3   -> trilha

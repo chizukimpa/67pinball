@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SIX SEVEN - Loja</title>
+<style>
+ html,body{margin:0;height:100%;background:#08060f;overflow:hidden}
+ body{display:grid;place-items:center;touch-action:manipulation;user-select:none}
+ #wrap{position:relative;height:100%;aspect-ratio:250/430;max-width:100%}
+ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
+ #memeBox{position:absolute;inset:0;display:none;place-items:center;background:rgba(6,4,14,0.9);z-index:20}
+ #memeBox.on{display:grid}
+ #memeBox video{width:90%;max-height:72%;border:3px solid #ffd52e;background:#000;object-fit:contain}
+ #memeBox .hint{position:absolute;bottom:10px;font:7px PS2P,monospace;color:#ffd52e}
+</style></head><body>
+<div id="wrap"><canvas id="c" width="500" height="860"></canvas>
+<div id="memeBox"><video id="memeVid" playsinline></video><div class="hint">TOQUE PARA FECHAR</div></div></div>
+<script>
+const PRICES=[670, 1700, 3400, 6700, 10000, 16700, 67000];
+const c=document.getElementById('c').getContext('2d');
+c.scale(2,2); c.imageSmoothingEnabled=false;
+let aura=0, own=[0,0,0,0,0,0,0], msg='', msgT=0;
+const MEMES=[];
+for(let i=1;i<=7;i++){ const im=new Image(); im.src='img/'+i+'.png'; MEMES.push(im); }
+function txt(s,x,y,col,size,align){c.font=(size||8)+'px PS2P, monospace';c.textBaseline='top';c.textAlign=align||'left';c.fillStyle=col;c.fillText(s,x|0,y|0);}
+const R=(x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(x|0,y|0,w|0,h|0);};
+function load(){
+  aura=parseInt(localStorage.getItem('67aura')||'0',10)||0;
+  for(let i=0;i<7;i++) own[i]=localStorage.getItem('67c'+(i+1))==='1'?1:0;
+}
+function save(){
+  localStorage.setItem('67aura',String(aura));
+  for(let i=0;i<7;i++) localStorage.setItem('67c'+(i+1),own[i]?'1':'0');
+}
+const CX=[45,123,201,45,123,201,45], CY=[87,87,87,189,189,189,291];
+const NAMES=['NA FESTA DO FIM DE SEMANA','SO ROLE BOM','BANDIDO QUER CHOCOLAX','ELA DESCE ELA SOBE','RAGEBAIT DOG','TUNG SAHUR','SIXSEVENKID'];
+const FMT=p=>String(p).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+let sel=0;
+
+function linhas(txto, maxW, size, maxL){
+  c.font=size+'px PS2P, monospace';
+  const palavras=String(txto).split(' ');
+  const out=[]; let cur='';
+  for(const p of palavras){
+    const t=cur ? cur+' '+p : p;
+    if(c.measureText(t).width<=maxW || !cur) cur=t;
+    else { out.push(cur); cur=p; }
+  }
+  if(cur) out.push(cur);
+  if(out.length>maxL){
+    const resto=out.splice(maxL-1);
+    out.push(resto.join(' '));
+  }
+  return out;
+}
+
+function marca(x,y,col){
+  const r=34,s=7;
+  R(x-r-2,y-r-2,s,2,col); R(x-r-2,y-r-2,2,s,col);
+  R(x+r+2-s,y-r-2,s,2,col); R(x+r+2,y-r-2,2,s,col);
+  R(x-r-2,y+r,s,2,col); R(x-r-2,y+r+2-s,2,s,col);
+  R(x+r+2-s,y+r,s,2,col); R(x+r+2,y+r+2-s,2,s,col);
+}
+
+const ANEIS=['#ffd52e','#ff8a1e','#37d67a','#c04bff','#6fe3ff','#2d63ff','#ff2d4f'];
+
+function draw(){
+  c.clearRect(0,0,250,430);
+
+  // fundo do tema + colagem com os memes atuais
+  R(0,0,250,430,'#160a2c');
+  for(let y=0;y<430;y+=8)R(0,y,250,4,'#201048');
+  const tiles=[[1,-46,-38,156],[6,114,-50,150],[7,138,82,156],[3,-58,86,150],
+               [2,0,202,144],[5,124,228,150],[4,-50,304,146],[7,114,340,142],[1,16,386,134]];
+  tiles.forEach(([k,x,y,s],i)=>{
+    const m=MEMES[k-1];
+    if(!m||!m.complete||!m.naturalWidth) return;
+    c.save();
+    c.translate(x+s/2,y+s/2);
+    c.rotate((i%2?1:-1)*(5+i)*Math.PI/180);
+    c.globalAlpha=0.85;
+    c.drawImage(m,-s/2,-s/2,s,s);
+    c.restore();
+  });
+  c.globalAlpha=1;
+  for(let y=0;y<430;y+=3)R(0,y,250,1,'rgba(8,4,18,0.22)');
+  c.fillStyle='rgba(14,8,30,0.52)';c.fillRect(0,0,250,430);
+
+  // fichas: anel colorido + foto
+  for(let i=0;i<7;i++){
+    const x=CX[i], y=CY[i];
+    c.beginPath();c.arc(x,y+2,30,0,Math.PI*2);c.fillStyle='rgba(0,0,0,0.5)';c.fill();
+    c.beginPath();c.arc(x,y,29,0,Math.PI*2);c.strokeStyle=ANEIS[i];c.lineWidth=4;c.stroke();
+    c.beginPath();c.arc(x,y,26,0,Math.PI*2);
+    c.save();c.clip();
+    const m=MEMES[i];
+    if(m&&m.complete&&m.naturalWidth) c.drawImage(m,x-27,y-27,54,54);
+    else { c.fillStyle='#241542';c.fillRect(x-27,y-27,54,54); }
+    c.restore();
+    c.beginPath();c.arc(x,y,26,0,Math.PI*2);c.strokeStyle='rgba(0,0,0,0.55)';c.lineWidth=1;c.stroke();
+  }
+
+  // cabecalho solido
+  R(0,0,250,44,'#120a24');
+  R(0,43,250,2,'#ffd52e');
+  txt('LOJA',12,10,'#ffd52e',14);
+  txt('AURA',238,8,'#6fe3ff',5,'right');
+  txt(FMT(aura),238,17,'#ffd52e',12,'right');
+
+  // nomes das fichas (cobre o nome antigo da arte)
+  for(let i=0;i<7;i++){
+    c.fillStyle='#120a24';
+    c.fillRect(CX[i]-34, CY[i]+28, 68, 13);
+  }
+  for(let i=0;i<7;i++){
+    const ls=linhas(NAMES[i], 62, 5, 2);
+    for(let k=0;k<ls.length;k++){
+      txt(ls[k], CX[i], CY[i]+29+k*6, '#fff7e6', 5, 'center');
+    }
+  }
+
+  // placas de preco (a selecionada fica destacada)
+  for(let i=0;i<6;i++){
+    const on=(i===sel);
+    c.fillStyle='rgba(18,10,36,0.94)';
+    c.fillRect(CX[i]-34,CY[i]+42,68,16);
+    if(on){ c.fillStyle='rgba(255,213,46,0.16)';c.fillRect(CX[i]-34,CY[i]+42,68,16); }
+    c.strokeStyle = on?'#ffd52e':'#2b2044';c.lineWidth=1;
+    c.strokeRect(CX[i]-33.5,CY[i]+42.5,67,15);
+    if(own[i]) txt('TEM',CX[i],CY[i]+45,'#37d67a',7,'center');
+    else txt(FMT(PRICES[i]),CX[i],CY[i]+45,on?'#fff7e6':'#ffd52e',7,'center');
+  }
+
+  // tapa o rodape antigo da arte
+  R(0,332,250,98,'#120a24');
+
+  // painel da ficha selecionada
+  c.fillStyle='rgba(18,10,36,0.95)';c.fillRect(16,340,218,58);
+  c.strokeStyle='#2b2044';c.lineWidth=1;c.strokeRect(16.5,340.5,217,57);
+  txt('FICHA '+(sel+1)+' DE 7',27,346,'#6fe3ff',5);
+  const lnSel=linhas(NAMES[sel], 118, 8, 2);
+  for(let k=0;k<lnSel.length;k++) txt(lnSel[k],27,351+k*9,'#ff2d4f',8);
+  if(own[sel]) txt('VOCE JA TEM',27,370,'#37d67a',7);
+  else txt(FMT(PRICES[sel])+' AURA',27,370,'#ffd52e',7);
+
+  let label='COMPRAR', fill='#ffd52e', tcol='#0e0b16';
+  if(own[sel]){ label='TEM'; fill='#3a3050'; tcol='#9a94a8'; }
+  else if(aura<PRICES[sel]){ label='SEM AURA'; fill='#3a3050'; tcol='#9a94a8'; }
+  c.fillStyle=fill;c.fillRect(150,354,76,26);
+  c.strokeStyle='#0e0b16';c.lineWidth=2;c.strokeRect(151,355,74,24);
+  txt(label,188,363,tcol,6,'center');
+
+  // marca da ficha selecionada
+  marca(CX[sel],CY[sel],'#ffd52e');
+
+  if(msg) txt(msg,125,386,'#ff2d4f',6,'center');
+
+  // botoes
+  c.fillStyle='#fff7e6';c.fillRect(16,404,110,24);
+  c.fillStyle='#ffd52e';c.fillRect(132,404,102,24);
+  c.strokeStyle='#0e0b16';c.lineWidth=2;
+  c.strokeRect(16,404,110,24);c.strokeRect(132,404,102,24);
+  txt('VOLTAR',71,411,'#0e0b16',7,'center');
+  txt('JOGAR',183,411,'#0e0b16',7,'center');
+}
+
+const memeBox=document.getElementById('memeBox');
+const memeVid=document.getElementById('memeVid');
+let memeTimer=0;
+function fecharMeme(){ memeBox.classList.remove('on'); memeVid.pause(); }
+function mostrarMeme(i){
+  memeVid.src='vid/'+i+'.mp4';
+  memeVid.loop=true;
+  memeVid.muted=(localStorage.getItem('67mute')==='1');
+  try{ memeVid.currentTime=0; }catch(e){}
+  memeBox.classList.add('on');
+  const pr=memeVid.play();
+  if(pr && pr.catch) pr.catch(function(){ memeVid.muted=true; memeVid.play().catch(function(){}); });
+  clearTimeout(memeTimer);
+  memeTimer=setTimeout(fecharMeme,5000);
+}
+memeBox.addEventListener('pointerdown',fecharMeme);
+
+function comprar(){
+  if(own[sel]) msg='JA TEM';
+  else if(aura>=PRICES[sel]){ aura-=PRICES[sel]; own[sel]=1; save(); msg='COMPRADO'; mostrarMeme(sel+1); }
+  else msg='SEM AURA';
+  msgT=Date.now()+1500;
+}
+
+document.getElementById('c').addEventListener('pointerdown',e=>{
+  const r=document.getElementById('c').getBoundingClientRect();
+  const x=((e.clientX-r.left)/r.width)*250, y=((e.clientY-r.top)/r.height)*430;
+  if(y>396){
+    var destino = (x<125?'menu':'mesa');
+    if(window.parent && window.parent.go){ window.parent.go(destino); }
+    else { location.href = (x<125?'index.html':'mesa.html'); }
+    return;
+  }
+  if(x>148&&x<228&&y>352&&y<382){ comprar(); return; }
+  for(let i=0;i<7;i++){
+    if(Math.hypot(x-CX[i],y-CY[i])<32){ sel=i; msg=''; return; }
+  }
+});
+
+addEventListener('message',function(e){
+  if(e.data==='67refresh'){ try{ load(); }catch(err){} }
+});
+
+function loop(){
+  if(msg&&Date.now()>msgT) msg='';
+  draw();
+  requestAnimationFrame(loop);
+}
+load();
+loop();
+</script>
+
+</body></html>
