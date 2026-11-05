@@ -34,8 +34,8 @@ function save(){
   localStorage.setItem('67aura',String(aura));
   for(let i=0;i<8;i++) localStorage.setItem('67c'+(i+1),own[i]?'1':'0');
 }
-const CX=[45,123,201,45,123,201,45,123], CY=[87,87,87,189,189,189,291,291];
-const NAMES=['NA FESTA DO FIM DE SEMANA','SO ROLE BOM','BANDIDO QUER CHOCOLAX','ELA DESCE ELA SOBE','RAGEBAIT DOG','TUNG SAHUR','SIXSEVENKID','67 RAIJIN'];
+const CX=[45,123,201,45,123,201,45,123], CY=[87,87,87,189,189,189,281,281];
+const NAMES=['NA FESTA DO FIM DE SEMANA','SO ROLE BOM','BANDIDO QUER CHOCOLAX','ELA DESCE ELA SOBE','RAGEBAIT DOG','TUNG SAHUR','SIXSEVENKID','67 NKEMURE'];
 const FMT=p=>String(p).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 let sel=0;
 
@@ -87,6 +87,7 @@ function draw(){
   c.globalAlpha=1;
   for(let y=0;y<430;y+=3)R(0,y,250,1,'rgba(8,4,18,0.22)');
   c.fillStyle='rgba(14,8,30,0.52)';c.fillRect(0,0,250,430);
+  R(0,332,250,98,'#120a24');
 
   // fichas: anel colorido + foto
   for(let i=0;i<8;i++){
@@ -122,7 +123,7 @@ function draw(){
   }
 
   // placas de preco (a selecionada fica destacada)
-  for(let i=0;i<6;i++){
+  for(let i=0;i<8;i++){
     const on=(i===sel);
     c.fillStyle='rgba(18,10,36,0.94)';
     c.fillRect(CX[i]-34,CY[i]+42,68,16);
@@ -132,9 +133,6 @@ function draw(){
     if(own[i]) txt('TEM',CX[i],CY[i]+45,'#37d67a',7,'center');
     else txt(FMT(PRICES[i]),CX[i],CY[i]+45,on?'#fff7e6':'#ffd52e',7,'center');
   }
-
-  // tapa o rodape antigo da arte
-  R(0,332,250,98,'#120a24');
 
   // painel da ficha selecionada
   c.fillStyle='rgba(18,10,36,0.95)';c.fillRect(16,340,218,58);
