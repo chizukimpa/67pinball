@@ -18,24 +18,24 @@
 <div id="wrap"><canvas id="c" width="500" height="860"></canvas>
 <div id="memeBox"><video id="memeVid" playsinline></video><div class="hint">TOQUE PARA FECHAR</div></div></div>
 <script>
-const PRICES=[670, 1700, 3400, 6700, 10000, 16700, 67000];
+const PRICES=[670, 1700, 3400, 6700, 10000, 16700, 67000, 100000];
 const c=document.getElementById('c').getContext('2d');
 c.scale(2,2); c.imageSmoothingEnabled=false;
-let aura=0, own=[0,0,0,0,0,0,0], msg='', msgT=0;
+let aura=0, own=[0,0,0,0,0,0,0,0], msg='', msgT=0;
 const MEMES=[];
-for(let i=1;i<=7;i++){ const im=new Image(); im.src='img/'+i+'.png'; MEMES.push(im); }
+for(let i=1;i<=8;i++){ const im=new Image(); im.src='img/'+i+'.png'; MEMES.push(im); }
 function txt(s,x,y,col,size,align){c.font=(size||8)+'px PS2P, monospace';c.textBaseline='top';c.textAlign=align||'left';c.fillStyle=col;c.fillText(s,x|0,y|0);}
 const R=(x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(x|0,y|0,w|0,h|0);};
 function load(){
   aura=parseInt(localStorage.getItem('67aura')||'0',10)||0;
-  for(let i=0;i<7;i++) own[i]=localStorage.getItem('67c'+(i+1))==='1'?1:0;
+  for(let i=0;i<8;i++) own[i]=localStorage.getItem('67c'+(i+1))==='1'?1:0;
 }
 function save(){
   localStorage.setItem('67aura',String(aura));
-  for(let i=0;i<7;i++) localStorage.setItem('67c'+(i+1),own[i]?'1':'0');
+  for(let i=0;i<8;i++) localStorage.setItem('67c'+(i+1),own[i]?'1':'0');
 }
-const CX=[45,123,201,45,123,201,45], CY=[87,87,87,189,189,189,291];
-const NAMES=['NA FESTA DO FIM DE SEMANA','SO ROLE BOM','BANDIDO QUER CHOCOLAX','ELA DESCE ELA SOBE','RAGEBAIT DOG','TUNG SAHUR','SIXSEVENKID'];
+const CX=[45,123,201,45,123,201,45,123], CY=[87,87,87,189,189,189,291,291];
+const NAMES=['NA FESTA DO FIM DE SEMANA','SO ROLE BOM','BANDIDO QUER CHOCOLAX','ELA DESCE ELA SOBE','RAGEBAIT DOG','TUNG SAHUR','SIXSEVENKID','67 RAIJIN'];
 const FMT=p=>String(p).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 let sel=0;
 
@@ -64,7 +64,7 @@ function marca(x,y,col){
   R(x+r+2-s,y+r,s,2,col); R(x+r+2,y+r+2-s,2,s,col);
 }
 
-const ANEIS=['#ffd52e','#ff8a1e','#37d67a','#c04bff','#6fe3ff','#2d63ff','#ff2d4f'];
+const ANEIS=['#ffd52e','#ff8a1e','#37d67a','#c04bff','#6fe3ff','#2d63ff','#ff2d4f','#fff7e6'];
 
 function draw(){
   c.clearRect(0,0,250,430);
@@ -89,7 +89,7 @@ function draw(){
   c.fillStyle='rgba(14,8,30,0.52)';c.fillRect(0,0,250,430);
 
   // fichas: anel colorido + foto
-  for(let i=0;i<7;i++){
+  for(let i=0;i<8;i++){
     const x=CX[i], y=CY[i];
     c.beginPath();c.arc(x,y+2,30,0,Math.PI*2);c.fillStyle='rgba(0,0,0,0.5)';c.fill();
     c.beginPath();c.arc(x,y,29,0,Math.PI*2);c.strokeStyle=ANEIS[i];c.lineWidth=4;c.stroke();
@@ -110,11 +110,11 @@ function draw(){
   txt(FMT(aura),238,17,'#ffd52e',12,'right');
 
   // nomes das fichas (cobre o nome antigo da arte)
-  for(let i=0;i<7;i++){
+  for(let i=0;i<8;i++){
     c.fillStyle='#120a24';
     c.fillRect(CX[i]-34, CY[i]+28, 68, 13);
   }
-  for(let i=0;i<7;i++){
+  for(let i=0;i<8;i++){
     const ls=linhas(NAMES[i], 62, 5, 2);
     for(let k=0;k<ls.length;k++){
       txt(ls[k], CX[i], CY[i]+29+k*6, '#fff7e6', 5, 'center');
@@ -139,7 +139,7 @@ function draw(){
   // painel da ficha selecionada
   c.fillStyle='rgba(18,10,36,0.95)';c.fillRect(16,340,218,58);
   c.strokeStyle='#2b2044';c.lineWidth=1;c.strokeRect(16.5,340.5,217,57);
-  txt('FICHA '+(sel+1)+' DE 7',27,346,'#6fe3ff',5);
+  txt('FICHA '+(sel+1)+' DE 8',27,346,'#6fe3ff',5);
   const lnSel=linhas(NAMES[sel], 118, 8, 2);
   for(let k=0;k<lnSel.length;k++) txt(lnSel[k],27,351+k*9,'#ff2d4f',8);
   if(own[sel]) txt('VOCE JA TEM',27,370,'#37d67a',7);
@@ -200,7 +200,7 @@ document.getElementById('c').addEventListener('pointerdown',e=>{
     return;
   }
   if(x>148&&x<228&&y>352&&y<382){ comprar(); return; }
-  for(let i=0;i<7;i++){
+  for(let i=0;i<8;i++){
     if(Math.hypot(x-CX[i],y-CY[i])<32){ sel=i; msg=''; return; }
   }
 });
