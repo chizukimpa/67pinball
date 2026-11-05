@@ -38,7 +38,7 @@ const ART=location.search.indexOf('art')>=0;
 if(ART) document.body.classList.add('art');
 const SAVE_KEY='aura67.profile';
 let state='menu';
-let S={name:'IEEP',aura:12340,chips:[1,1,1,1,1,0,0],best:12340,muted:false};
+let S={name:'IEEP',aura:12340,chips:[1,1,1,1,1,0,0,0],best:12340,muted:false};
 let editing=false, caretOn=true, hover=null, pressed=null, toastTimer=0, nameBuf='';
 
 const BTN={
@@ -55,8 +55,17 @@ function load(){
     if(n) S.name=n;
     const a=parseInt(localStorage.getItem('67aura')||'0',10); S.aura=isNaN(a)?0:a;
     const m=localStorage.getItem('67mute'); if(m==='1') S.muted=true;
-    for(let i=0;i<7;i++) S.chips[i]= localStorage.getItem('67c'+(i+1))==='1'?1:0;
-    if(S.name) localStorage.setItem('67save.'+S.name, JSON.stringify({aura:S.aura,chips:S.chips,mute:S.muted?1:0}));
+    for(let i=0;i<8;i++) S.chips[i]= localStorage.getItem('67c'+(i+1))==='1'?1:0;
+    try{
+      const c=CLOUD[S.name];
+      if(c && (c.ts||0) > (parseFloat(localStorage.getItem('67saveTs.'+S.name)||'0'))){
+        S.aura=c.aura||0; S.chips=c.chips||S.chips;
+      }
+    }catch(e){}
+    if(S.name){
+      localStorage.setItem('67saveTs.'+S.name, String(Date.now()));
+      localStorage.setItem('67save.'+S.name, JSON.stringify({aura:S.aura,chips:S.chips,mute:S.muted?1:0,ts:Date.now()}));
+    }
   }catch(e){}
   document.getElementById('kbd').value=S.name;
 }
@@ -68,13 +77,55 @@ function savedProfiles(){
       if(k && k.indexOf('67save.')===0){
         try{
           const j=JSON.parse(localStorage.getItem(k));
-          out.push({n:k.slice(7), a:j.aura||0, ch:j.chips||[0,0,0,0,0,0,0]});
+          out.push({n:k.slice(7), a:j.aura||0, ch:j.chips||[0,0,0,0,0,0,0,0], ts:j.ts||0});
         }catch(e){}
       }
     }
   }catch(e){}
+  try{
+    for(const k in CLOUD){
+      const c=CLOUD[k]||{};
+      let cur=null;
+      for(const q of out){ if(q.n===k){ cur=q; break; } }
+      if(!cur) out.push({n:k, a:c.aura||0, ch:c.chips||[0,0,0,0,0,0,0,0], ts:c.ts||0});
+      else if((c.ts||0) > (cur.ts||0)){ cur.a=c.aura||0; cur.ch=c.chips||cur.ch; cur.ts=c.ts||0; }
+    }
+  }catch(e){}
   return out;
 }
+
+/* ---------- ranking na nuvem (mesmo em todos os aparelhos) ---------- */
+const SYNC_URL='https://api.restful-api.dev/objects/ff808181a09d98f701a1adf8d47b4720';
+let CLOUD={};
+try{ CLOUD=JSON.parse(localStorage.getItem('67cloud')||'{}')||{}; }catch(e){ CLOUD={}; }
+function nuvemCache(){ try{ localStorage.setItem('67cloud', JSON.stringify(CLOUD)); }catch(e){} }
+function nuvemPull(){
+  return fetch(SYNC_URL,{cache:'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      const p=(j&&j.data&&j.data.players)||{};
+      CLOUD=p;                 // servidor manda
+      nuvemCache();
+    }).catch(function(){});
+}
+function nuvemPush(){
+  const vazio=(S.aura===0) && !S.chips.some(function(v){return v;});
+  if(vazio && CLOUD[S.name]) return Promise.resolve();
+  const eu={aura:S.aura, chips:S.chips.map(function(v){return v?1:0;}), ts:Date.now()};
+  return fetch(SYNC_URL,{cache:'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      const p=(j&&j.data&&j.data.players)||{};
+      const novo={};
+      for(const k in p) novo[k]=p[k];
+      novo[S.name]=eu;         // eu por cima do que veio
+      CLOUD=novo;
+      nuvemCache();
+      return fetch(SYNC_URL,{method:'PUT',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name:'67pinball-rank',data:{players:novo}})});
+    }).catch(function(){});
+}
+
 function save(){try{
   localStorage.setItem('67nome',S.name);
   localStorage.setItem('67mute',S.muted?'1':'0');
@@ -159,7 +210,7 @@ function draw(){
     txt(r.vazio?'':(i+1)+'.',15,y,C.G2,6);
     if(!ART || !r.me) txt(r.n.slice(0,12),26,y,r.me?C.R:C.W,6);
     if(!ART) txt(FMT(r.a),150,y,r.me?C.Y:C.W,6,'right');
-    if(!ART) for(let j=0;j<7;j++) R(158+j*11,y-2,9,8,r.ch[j]?C.Y:'#3a3050');
+    if(!ART) for(let j=0;j<8;j++) R(156+j*10,y-2,8,8,r.ch[j]?C.Y:'#3a3050');
     if(i<4) R(14,y+13,222,1,'rgba(43,32,68,0.9)');
   });
 
@@ -190,7 +241,7 @@ function draw(){
 
 
 addEventListener('message',function(e){
-  if(e.data==='67refresh'){ try{ load(); }catch(err){} }
+  if(e.data==='67refresh'){ try{ load(); }catch(err){} nuvemPull().then(nuvemPush); }
 });
 
 /* ---------- input ---------- */
@@ -254,18 +305,21 @@ function commit(){
     let j=null;
     try{ j=JSON.parse(localStorage.getItem('67save.'+novo)||'null'); }catch(e){}
     S.aura = j? (j.aura||0) : 0;
-    S.chips = j? (j.chips||[0,0,0,0,0,0,0]) : [0,0,0,0,0,0,0];
+    S.chips = j? (j.chips||[0,0,0,0,0,0,0,0]) : [0,0,0,0,0,0,0,0];
     S.muted = j? !!j.mute : false;
+    const cn=CLOUD[novo];
+    if(cn && (cn.ts||0) > ((j&&j.ts)||0)){ S.aura=cn.aura||0; S.chips=cn.chips||S.chips; }
     S.name = novo;
     try{
       localStorage.setItem('67nome',S.name);
       localStorage.setItem('67aura',String(S.aura));
       localStorage.setItem('67mute',S.muted?'1':'0');
-      for(let i=0;i<7;i++) localStorage.setItem('67c'+(i+1), S.chips[i]?'1':'0');
+      for(let i=0;i<8;i++) localStorage.setItem('67c'+(i+1), S.chips[i]?'1':'0');
     }catch(e){}
   }
   editing=false;
   save();
+  nuvemPush();
 }
 document.getElementById('kbd').addEventListener('input',e=>{
   e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g,'').slice(0,12);
@@ -282,7 +336,7 @@ function frame(t){
   requestAnimationFrame(frame);
 }
 
-load();buildMed();
+load();buildMed();nuvemPull().then(nuvemPush);
 if(document.fonts&&FONT_B64){
   const f=new FontFace('PS2P','url(data:font/ttf;base64,'+FONT_B64+')');
   f.load().then(()=>{document.fonts.add(f);requestAnimationFrame(frame);}).catch(()=>requestAnimationFrame(frame));
