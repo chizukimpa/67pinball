@@ -58,9 +58,8 @@ function load(){
     for(let i=0;i<8;i++) S.chips[i]= localStorage.getItem('67c'+(i+1))==='1'?1:0;
     try{
       const c=CLOUD[S.name];
-      if(c && (c.ts||0) > (parseFloat(localStorage.getItem('67saveTs.'+S.name)||'0'))){
-        S.aura=c.aura||0; S.chips=c.chips||S.chips;
-      }
+      const temLocal=!!localStorage.getItem('67save.'+S.name);
+      if(c && !temLocal){ S.aura=c.aura||0; S.chips=c.chips||S.chips; }
     }catch(e){}
     if(S.name){
       localStorage.setItem('67saveTs.'+S.name, String(Date.now()));
@@ -110,7 +109,7 @@ function nuvemPull(){
 }
 function nuvemPush(){
   const vazio=(S.aura===0) && !S.chips.some(function(v){return v;});
-  if(vazio && CLOUD[S.name]) return Promise.resolve();
+  if(vazio) return Promise.resolve();   // nao cria perfil zerado na nuvem
   const eu={aura:S.aura, chips:S.chips.map(function(v){return v?1:0;}), ts:Date.now()};
   return fetch(SYNC_URL,{cache:'no-store'})
     .then(function(r){ return r.json(); })
@@ -269,6 +268,9 @@ cv.addEventListener('pointerdown',e=>{
   const p=pos(e);pressed=hit(p.x,p.y);
   if(pressed==='name'){
     editing=true; nameBuf=S.name;
+    const k=document.getElementById('kbd');
+    k.value=S.name;
+    try{ k.focus(); k.setSelectionRange(S.name.length,S.name.length); }catch(err){}
   } else if(editing){
     commit();
   }
@@ -286,12 +288,8 @@ addEventListener('keydown',e=>{
     return;
   }
   if(e.key==='Enter'){ commit(); e.preventDefault(); return; }
-  if(e.key==='Escape'){ editing=false; return; }
-  if(e.key==='Backspace'){ nameBuf=nameBuf.slice(0,-1); e.preventDefault(); return; }
-  if(e.key.length===1 && /[a-zA-Z0-9 ]/.test(e.key)){
-    if(nameBuf.length<12) nameBuf+=e.key.toUpperCase();
-    e.preventDefault();
-  }
+  if(e.key==='Escape'){ editing=false; try{document.getElementById('kbd').blur();}catch(err){} return; }
+  // o resto do texto e tratado pelo input #kbd (funciona no teclado virtual tambem)
 });
 function commit(){
   const v=(nameBuf||'').toUpperCase().replace(/[^A-Z0-9 ]/g,'').slice(0,12).trim();
@@ -308,7 +306,7 @@ function commit(){
     S.chips = j? (j.chips||[0,0,0,0,0,0,0,0]) : [0,0,0,0,0,0,0,0];
     S.muted = j? !!j.mute : false;
     const cn=CLOUD[novo];
-    if(cn && (cn.ts||0) > ((j&&j.ts)||0)){ S.aura=cn.aura||0; S.chips=cn.chips||S.chips; }
+    if(cn && !j){ S.aura=cn.aura||0; S.chips=cn.chips||S.chips; }
     S.name = novo;
     try{
       localStorage.setItem('67nome',S.name);
@@ -318,11 +316,14 @@ function commit(){
     }catch(e){}
   }
   editing=false;
+  try{ document.getElementById('kbd').blur(); }catch(err){}
   save();
   nuvemPush();
 }
 document.getElementById('kbd').addEventListener('input',e=>{
-  e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g,'').slice(0,12);
+  const v=e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g,'').slice(0,12);
+  e.target.value=v;
+  if(editing) nameBuf=v;
 });
 document.getElementById('kbd').addEventListener('blur',()=>{ if(editing) commit(); });
 
