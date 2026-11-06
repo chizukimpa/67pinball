@@ -9,7 +9,10 @@
   body{display:grid;place-items:center;font-family:"PS2P",monospace;touch-action:manipulation}
   #wrap{position:relative;width:min(100vw,calc(100vh*250/430));height:min(100vh,calc(100vw*430/250));aspect-ratio:250/430}
   canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
-  #kbd{position:absolute;opacity:0;pointer-events:none;left:50%;top:50%;width:1px;height:1px;border:0;padding:0}
+  #kbd{position:absolute;left:12%;top:42.79%;width:76%;height:7.9%;
+       opacity:0.02;background:transparent;border:0;padding:0;margin:0;
+       font:16px PS2P,monospace;color:transparent;caret-color:transparent;
+       pointer-events:auto;z-index:3;text-align:center;outline:none}
   body.art{display:block;background:#000}
   body.art #wrap{width:500px;height:860px;max-width:none}
   #toast{position:absolute;left:50%;bottom:6%;transform:translateX(-50%);background:#0e0b16;color:#fff7e6;
@@ -327,6 +330,15 @@ function commit(){
   save();
   nuvemPush();
 }
+document.getElementById('kbd').addEventListener('pointerdown',function(){
+  if(!editing){ this.value=S.name; nameBuf=S.name; }
+  editing=true;
+});
+document.getElementById('kbd').addEventListener('focus',function(){
+  if(!editing){ this.value=S.name; nameBuf=S.name; }
+  editing=true;
+  try{ this.setSelectionRange(nameBuf.length,nameBuf.length); }catch(e){}
+});
 document.getElementById('kbd').addEventListener('input',e=>{
   const v=e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g,'').slice(0,12);
   e.target.value=v;
