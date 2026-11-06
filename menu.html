@@ -51,6 +51,15 @@ const BTN={
   name:{x:30,y:184,w:190,h:34}
 };
 
+function temDadosLocais(nome){
+  try{
+    if(localStorage.getItem('67save.'+nome)) return true;
+    if((parseInt(localStorage.getItem('67aura')||'0',10)||0) > 0) return true;
+    for(let i=1;i<=8;i++) if(localStorage.getItem('67c'+i)==='1') return true;
+  }catch(e){}
+  return false;
+}
+
 function load(){
   try{
     let n=localStorage.getItem('67nome');
@@ -61,8 +70,12 @@ function load(){
     for(let i=0;i<8;i++) S.chips[i]= localStorage.getItem('67c'+(i+1))==='1'?1:0;
     try{
       const c=CLOUD[S.name];
-      const temLocal=!!localStorage.getItem('67save.'+S.name);
-      if(c && !temLocal){ S.aura=c.aura||0; S.chips=c.chips||S.chips; }
+      if(c && !temDadosLocais(S.name)){
+        // aparelho novo (ex: aba anonima): continua de onde o perfil parou
+        S.aura=c.aura||0; S.chips=c.chips||S.chips;
+        localStorage.setItem('67aura',String(S.aura));
+        for(let i=0;i<8;i++) localStorage.setItem('67c'+(i+1), S.chips[i]?'1':'0');
+      }
     }catch(e){}
     if(S.name){
       localStorage.setItem('67saveTs.'+S.name, String(Date.now()));
@@ -316,7 +329,13 @@ function commit(){
     S.chips = j? (j.chips||[0,0,0,0,0,0,0,0]) : [0,0,0,0,0,0,0,0];
     S.muted = j? !!j.mute : false;
     const cn=CLOUD[novo];
-    if(cn && !j){ S.aura=cn.aura||0; S.chips=cn.chips||S.chips; }
+    if(cn && !j && !temDadosLocais(novo)){
+      S.aura=cn.aura||0; S.chips=cn.chips||S.chips;
+      try{
+        localStorage.setItem('67aura',String(S.aura));
+        for(let i=0;i<8;i++) localStorage.setItem('67c'+(i+1), S.chips[i]?'1':'0');
+      }catch(e){}
+    }
     S.name = novo;
     try{
       localStorage.setItem('67nome',S.name);
