@@ -110,7 +110,7 @@ function savedProfiles(){
 }
 
 /* ---------- ranking na nuvem (mesmo em todos os aparelhos) ---------- */
-const SYNC_URL='https://api.restful-api.dev/objects/ff808181a09d98f701a1adf8d47b4720';
+const SYNC_URL='/api/rank';
 let CLOUD={};
 try{ CLOUD=JSON.parse(localStorage.getItem('67cloud')||'{}')||{}; }catch(e){ CLOUD={}; }
 function nuvemCache(){ try{ localStorage.setItem('67cloud', JSON.stringify(CLOUD)); }catch(e){} }
@@ -118,27 +118,22 @@ function nuvemPull(){
   return fetch(SYNC_URL,{cache:'no-store'})
     .then(function(r){ return r.json(); })
     .then(function(j){
-      const p=(j&&j.data&&j.data.players)||{};
-      CLOUD=p;                 // servidor manda
+      const p=(j&&j.players)||{};
+      CLOUD=p;
       nuvemCache();
     }).catch(function(){});
 }
 function nuvemPush(){
   const vazio=(S.aura===0) && !S.chips.some(function(v){return v;});
-  if(vazio) return Promise.resolve();   // nao cria perfil zerado na nuvem
-  const eu={aura:S.aura, chips:S.chips.map(function(v){return v?1:0;}), ts:Date.now()};
-  return fetch(SYNC_URL,{cache:'no-store'})
+  if(vazio) return Promise.resolve();
+  return fetch(SYNC_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:S.name,aura:S.aura,chips:S.chips})
+  })
     .then(function(r){ return r.json(); })
-    .then(function(j){
-      const p=(j&&j.data&&j.data.players)||{};
-      const novo={};
-      for(const k in p) novo[k]=p[k];
-      novo[S.name]=eu;         // eu por cima do que veio
-      CLOUD=novo;
-      nuvemCache();
-      return fetch(SYNC_URL,{method:'PUT',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({name:'67pinball-rank',data:{players:novo}})});
-    }).catch(function(){});
+    .then(function(j){ if(j&&j.players){ CLOUD=j.players; nuvemCache(); } })
+    .catch(function(){});
 }
 
 function save(){try{
@@ -215,15 +210,24 @@ function draw(){
   txt('RANKING',16,51,C.C,6);
   txt('AURA',150,51,C.Y,6,'right');
   txt('FICHAS',236,51,C.Y,6,'right');
-  const outros=savedProfiles().filter(q=>q.n!==S.name).sort((a,b)=>b.a-a.a);
-  const rows=[{n:S.name,a:S.aura,ch:S.chips,me:true}]
-    .concat(outros.map(q=>({n:q.n,a:q.a,ch:q.ch,me:false})))
-    .slice(0,5);
-  while(rows.length<5) rows.push({n:'---',a:0,ch:[0,0,0,0,0,0,0],me:false,vazio:true});
+  // ranking em ordem real (maior aura primeiro)
+  const todos=savedProfiles().map(q=>({n:q.n,a:q.a,ch:q.ch}));
+  let achou=false;
+  todos.forEach(q=>{ if(q.n===S.name){ q.a=S.aura; q.ch=S.chips; achou=true; } });
+  if(!achou) todos.push({n:S.name,a:S.aura,ch:S.chips});
+  todos.sort((a,b)=>b.a-a.a);
+  const posMe=todos.findIndex(q=>q.n===S.name)+1;
+
+  let rows=todos.slice(0,5).map((q,i)=>({n:q.n,a:q.a,ch:q.ch,pos:i+1,me:q.n===S.name}));
+  if(posMe>5){
+    rows[4]={n:S.name,a:S.aura,ch:S.chips,pos:posMe,me:true};
+  }
+  while(rows.length<5) rows.push({n:'---',a:0,ch:[0,0,0,0,0,0,0,0],pos:rows.length+1,vazio:true});
+
   rows.forEach((r,i)=>{
     const y=68+i*18;
     if(r.me) R(12,y-3,226,15,'rgba(255,45,79,0.13)');
-    txt(r.vazio?'':(i+1)+'.',15,y,C.G2,6);
+    txt(r.vazio?'':r.pos+'.',15,y,C.G2,6);
     if(!ART || !r.me) txt(r.n.slice(0,12),26,y,r.me?C.R:C.W,6);
     if(!ART) txt(FMT(r.a),150,y,r.me?C.Y:C.W,6,'right');
     if(!ART) for(let j=0;j<8;j++) R(156+j*10,y-2,8,8,r.ch[j]?C.Y:'#3a3050');
