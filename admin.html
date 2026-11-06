@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>67 PINBALL - ADMIN</title>
+<style>
+  html,body{margin:0;background:#120a24;color:#fff7e6;font:14px monospace}
+  h1{font-size:16px;color:#ffd52e;margin:16px}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:6px 8px;border-bottom:1px solid #2b2044;text-align:left;font-size:12px}
+  th{color:#6fe3ff}
+  input[type=text],input[type=number]{background:#0e0b16;color:#fff7e6;border:1px solid #2b2044;padding:3px;font:12px monospace}
+  input[type=number]{width:90px}
+  .chips label{display:inline-block;margin-right:4px;color:#9a94a8}
+  button{background:#ffd52e;color:#0e0b16;border:0;padding:4px 8px;font:12px monospace;cursor:pointer;margin-right:4px}
+  button.del{background:#ff2d4f}
+  #msg{position:fixed;left:8px;bottom:8px;color:#37d67a;font-size:12px}
+</style></head>
+<body>
+<h1>67 PINBALL - BANCO DE DADOS</h1>
+<div style="margin:0 16px 12px">Nome: <input type="text" id="novoNome" placeholder="NOME"> Aura: <input type="number" id="novoAura" value="0"> <button onclick="addNovo()">ADICIONAR</button></div>
+<table><thead><tr><th>#</th><th>Nome</th><th>Aura</th><th>Fichas</th><th></th></tr></thead><tbody id="tb"></tbody></table>
+<div id="msg"></div>
+<script>
+const API='/api/rank';
+let dados={};
+function msg(t){ const m=document.getElementById('msg'); m.textContent=t; setTimeout(()=>m.textContent='',2500); }
+async function carregar(){
+  const r=await fetch(API,{cache:'no-store'});
+  const j=await r.json();
+  dados=j.players||{};
+  render();
+}
+function render(){
+  const nomes=Object.keys(dados).sort((a,b)=>{
+    const fa=f=>f.chips.reduce((s,v)=>s+(v?1:0),0);
+    return (fa(dados[b])-fa(dados[a])) || (dados[b].aura-dados[a].aura);
+  });
+  const tb=document.getElementById('tb');
+  tb.innerHTML=nomes.map((n,i)=>{
+    const p=dados[n];
+    let chips='';
+    for(let j=0;j<8;j++) chips+='<label><input type="checkbox" data-n="'+n+'" data-j="'+j+'" '+(p.chips[j]?'checked':'')+'>'+j+'</label>';
+    return '<tr><td>'+(i+1)+'</td>'+
+      '<td><input type="text" value="'+n+'" data-ren="'+n+'" size="12"></td>'+
+      '<td><input type="number" value="'+p.aura+'" data-aura="'+n+'"></td>'+
+      '<td class="chips">'+chips+'</td>'+
+      '<td><button onclick="salvar(\''+n+'\')">SALVAR</button><button class="del" onclick="apagar(\''+n+'\')">X</button></td></tr>';
+  }).join('');
+}
+function ler(nome){
+  const aura=document.querySelector('input[data-aura="'+nome+'"]').value;
+  const chips=[];
+  for(let j=0;j<8;j++){
+    const c=document.querySelector('input[data-n="'+nome+'"][data-j="'+j+'"]');
+    chips.push(c && c.checked ? 1 : 0);
+  }
+  return {aura:parseInt(aura,10)||0, chips};
+}
+async function salvar(nome){
+  const d=ler(nome);
+  await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:nome,aura:d.aura,chips:d.chips})});
+  msg('salvo: '+nome);
+  carregar();
+}
+async function apagar(nome){
+  await fetch(API+'?key=67rank&name='+encodeURIComponent(nome),{method:'DELETE'});
+  msg('removido: '+nome);
+  carregar();
+}
+async function addNovo(){
+  const n=document.getElementById('novoNome').value.toUpperCase().trim();
+  const a=parseInt(document.getElementById('novoAura').value,10)||0;
+  if(!n) return;
+  await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:n,aura:a,chips:[0,0,0,0,0,0,0,0]})});
+  document.getElementById('novoNome').value='';
+  msg('adicionado: '+n);
+  carregar();
+}
+carregar();
+</script>
+</body></html>
