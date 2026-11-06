@@ -14,7 +14,7 @@
 <iframe id="s-menu" class="on" src="menu.html"></iframe>
 <iframe id="s-mesa" src="mesa.html"></iframe>
 <iframe id="s-loja" src="loja.html"></iframe>
-<audio id="bgm" src="music.mp3" loop preload="auto"></audio>
+<audio id="bgm" src="music.mp3" loop preload="none"></audio>
 
 <script>
 /* ---------- troca de telas (sem recarregar, musica continua) ---------- */
@@ -74,20 +74,23 @@ a.addEventListener('loadedmetadata', function(){
   a.volume = volAtual();
 }, {once:true});
 
-/* tenta ja na abertura, com som */
+/* so comeca no primeiro gesto (evita baixar 58 MB de musica na abertura) */
 a.muted = estaMudo();
-tocar();
-[200, 600, 1500, 3000].forEach(function(ms){ setTimeout(tocar, ms); });
-['canplay','canplaythrough','loadeddata'].forEach(function(ev){
-  a.addEventListener(ev, function(){ if(a.paused) tocar(); });
-});
+var _primeiroGesto = false;
+function primeiroGesto(){
+  if(_primeiroGesto) return;
+  _primeiroGesto = true;
+  tocar();
+}
+document.addEventListener('pointerdown', primeiroGesto);
+document.addEventListener('keydown', primeiroGesto);
+document.addEventListener('touchstart', primeiroGesto);
 
 /* sincroniza volume/mute vindos de qualquer tela */
 setInterval(function(){
   try{ localStorage.setItem('67musictime', String(a.currentTime)); }catch(e){}
   a.volume = volAtual();
   a.muted = estaMudo();
-  if(a.paused) tocar();
 }, 800);
 
 /* ---------- gesto do usuario (dentro dos iframes tambem) ---------- */
