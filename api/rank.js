@@ -1,4 +1,4 @@
-const { put, list } = require('@vercel/blob');
+const { put, list, del } = require('@vercel/blob');
 
 const STORE = process.env.BLOB_STORE_ID;
 const PREFIX = 'players/';
@@ -59,6 +59,22 @@ module.exports = async function handler(req, res) {
       });
 
       res.status(200).json({ ok: true, player: dados });
+      return;
+    }
+
+    if (req.method === 'DELETE') {
+      const q = req.query || {};
+      if (q.key !== '67rank') {
+        res.status(403).json({ error: 'chave' });
+        return;
+      }
+      const nome = limparNome(q.name);
+      if (!nome) {
+        res.status(400).json({ error: 'nome' });
+        return;
+      }
+      await del(PREFIX + encodeURIComponent(nome) + '.json', { storeId: STORE });
+      res.status(200).json({ ok: true, removido: nome });
       return;
     }
 
