@@ -42,7 +42,7 @@ let S={name:'IEEP',aura:12340,chips:[1,1,1,1,1,0,0,0],best:12340,muted:false};
 let editing=false, caretOn=true, hover=null, pressed=null, toastTimer=0, nameBuf='';
 
 const BTN={
-  jogar:{x:40,y:292,w:170,h:52,label:'JOGAR',color:C.Y,size:14},
+  jogar:{x:36,y:290,w:122,h:56,label:'JOGAR',color:C.Y,size:14},
   loja:{x:16,y:358,w:104,h:36,label:'LOJA',color:C.W,size:7},
   mute:{x:130,y:358,w:104,h:36,label:'MUTE',color:C.W,size:7},
   name:{x:30,y:184,w:190,h:34}
@@ -143,6 +143,7 @@ function txtOut(s,x,y,col,size,outline,ow){
   c.lineWidth=ow||2;c.strokeStyle=outline||C.K;c.lineJoin='miter';
   c.strokeText(s,x|0,y|0);c.fillStyle=col;c.fillText(s,x|0,y|0);
 }
+const QR=new Image(); QR.src='img/qr.png';
 const MED={};
 function buildMed(){
   for(let i=1;i<=7;i++){
@@ -231,6 +232,12 @@ function draw(){
   txt('E A AURA E ADICIONADA AO PERFIL.',16,263,C.Y,5.5);
 
   drawButton('jogar');
+  if(QR.complete && QR.naturalWidth){
+    R(166,286,64,64,'#fff7e6');
+    c.strokeStyle='#0e0b16';c.lineWidth=2;c.strokeRect(167,287,62,62);
+    c.drawImage(QR,170,290,56,56);
+    txt('SCAN',198,352,'#6fe3ff',5,'center');
+  }
   drawButton('loja');
   BTN.mute.label=muted?'SOM OFF':'MUTE';
   BTN.mute.color=muted?C.R:C.W;
@@ -346,7 +353,7 @@ function padMenu(){
   let gp=null;
   for(const p of gps){ if(p && p.connected){ gp=p; break; } }
   if(gp){
-    const b=gp.buttons[0];
+    const b=gp.buttons[8];
     const a=!!(b && (b.pressed || b.value>0.5));
     if(a && !padA){
       if(window.parent&&window.parent.go) window.parent.go('mesa');
