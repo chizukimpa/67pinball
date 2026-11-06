@@ -39,7 +39,7 @@ function render(){
   tb.innerHTML=nomes.map((n,i)=>{
     const p=dados[n];
     let chips='';
-    for(let j=0;j<8;j++) chips+='<label><input type="checkbox" data-n="'+n+'" data-j="'+j+'" '+(p.chips[j]?'checked':'')+'>'+j+'</label>';
+    for(let j=0;j<9;j++) chips+='<label><input type="checkbox" data-n="'+n+'" data-j="'+j+'" '+(p.chips[j]?'checked':'')+'>'+j+'</label>';
     return '<tr><td>'+(i+1)+'</td>'+
       '<td><input type="text" value="'+n+'" data-ren="'+n+'" size="12"></td>'+
       '<td><input type="number" value="'+p.aura+'" data-aura="'+n+'"></td>'+
@@ -50,7 +50,7 @@ function render(){
 function ler(nome){
   const aura=document.querySelector('input[data-aura="'+nome+'"]').value;
   const chips=[];
-  for(let j=0;j<8;j++){
+  for(let j=0;j<9;j++){
     const c=document.querySelector('input[data-n="'+nome+'"][data-j="'+j+'"]');
     chips.push(c && c.checked ? 1 : 0);
   }
@@ -59,7 +59,7 @@ function ler(nome){
 async function salvar(nome){
   const d=ler(nome);
   await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name:nome,aura:d.aura,chips:d.chips})});
+    body:JSON.stringify({name:nome,aura:d.aura,chips:d.chips,key:'67rank'})});
   msg('salvo: '+nome);
   carregar();
 }
@@ -73,7 +73,7 @@ async function addNovo(){
   const a=parseInt(document.getElementById('novoAura').value,10)||0;
   if(!n) return;
   await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name:n,aura:a,chips:[0,0,0,0,0,0,0,0]})});
+    body:JSON.stringify({name:n,aura:a,chips:[0,0,0,0,0,0,0,0,0],key:'67rank'})});
   document.getElementById('novoNome').value='';
   msg('adicionado: '+n);
   carregar();

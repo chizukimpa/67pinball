@@ -381,8 +381,21 @@ function score(v){aura+=v;}
 function flash(x,y,t,col){msgs.push({x,y,t,col,life:0.8});}
 function saveAura(){
   try{
+    const nome=(localStorage.getItem('67nome')||'').toUpperCase().trim();
     const prev=parseInt(localStorage.getItem('67aura')||'0',10)||0;
     localStorage.setItem('67aura',String(prev+aura));
+    if(nome && aura>0){
+      // manda so a diferenca da partida; o banco soma
+      fetch('/api/rank',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name:nome,addAura:aura})})
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if(j&&j.player){
+            localStorage.setItem('67aura',String(j.player.aura));
+            for(var i=0;i<9;i++) localStorage.setItem('67c'+(i+1), (j.player.chips&&j.player.chips[i])?'1':'0');
+          }
+        }).catch(function(){});
+    }
   }catch(e){}
 }
 
