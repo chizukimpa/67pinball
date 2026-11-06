@@ -25,6 +25,8 @@ function go(nome){
   }
   // avisa a tela para reler aura/fichas do localStorage
   var fr = document.getElementById(TELAS[nome]);
+  // devolve o foco do teclado para a tela que apareceu (setas/espaco funcionam na hora)
+  try{ if(fr && fr.contentWindow) fr.contentWindow.focus(); }catch(e){}
   try{ if(fr && fr.contentWindow) fr.contentWindow.postMessage('67refresh', '*'); }catch(e){}
   // entrou na mesa pelo JOGAR: comeca partida nova (sai da tela de fim de jogo/pausa)
   if(nome==='mesa'){
@@ -123,5 +125,17 @@ function ligarFrame(fr){
 }
 document.querySelectorAll('iframe').forEach(ligarFrame);
 ligarGestos(document);
+
+// se o foco ficar na casca, encaminha as teclas do jogo para a mesa
+function encaminharTeclas(e){
+  var fr = document.getElementById('s-mesa');
+  if(!fr || !fr.classList.contains('on')) return;
+  var k = e.key;
+  if(k===' '||k==='Enter'||k==='ArrowLeft'||k==='ArrowRight'||k==='ArrowDown'||k==='ArrowUp'||k==='a'||k==='d'||k==='A'||k==='D'){
+    try{ fr.contentWindow.dispatchEvent(new KeyboardEvent('keydown',{key:k,bubbles:true})); }catch(err){}
+    e.preventDefault();
+  }
+}
+document.addEventListener('keydown', encaminharTeclas);
 </script>
 </body></html>

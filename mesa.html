@@ -878,6 +878,7 @@ function editorEvents(){
 
 // ---------- input ----------
 document.getElementById('c').addEventListener('pointerdown',e=>{
+  try{ window.focus(); }catch(err){}
   const rb=document.getElementById('c').getBoundingClientRect();
   const px=((e.clientX-rb.left)/rb.width)*W, py=((e.clientY-rb.top)/rb.height)*H;
   if(paused){
