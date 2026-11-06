@@ -144,7 +144,7 @@ function draw(){
   else txt(FMT(PRICES[sel])+' AURA',27,370,'#ffd52e',7);
 
   let label='COMPRAR', fill='#ffd52e', tcol='#0e0b16';
-  if(own[sel]){ label='TEM'; fill='#3a3050'; tcol='#9a94a8'; }
+  if(own[sel]){ label='VER CLIPE'; fill='#6fe3ff'; tcol='#0e0b16'; }
   else if(aura<PRICES[sel]){ label='SEM AURA'; fill='#3a3050'; tcol='#9a94a8'; }
   c.fillStyle=fill;c.fillRect(150,354,76,26);
   c.strokeStyle='#0e0b16';c.lineWidth=2;c.strokeRect(151,355,74,24);
@@ -197,7 +197,7 @@ document.getElementById('c').addEventListener('pointerdown',e=>{
     else { location.href = (x<125?'menu.html':'mesa.html'); }
     return;
   }
-  if(x>148&&x<228&&y>352&&y<382){ comprar(); return; }
+  if(x>148&&x<228&&y>352&&y<382){ if(own[sel]) mostrarMeme(sel+1); else comprar(); return; }
   for(let i=0;i<8;i++){
     if(Math.hypot(x-CX[i],y-CY[i])<32){ sel=i; msg=''; return; }
   }

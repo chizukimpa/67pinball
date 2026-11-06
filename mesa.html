@@ -337,7 +337,7 @@ function stepPhysics(dt){
   }
 
   window.__pad=9;
-  var heldNow=flippers.some(f=>f.held);
+  var heldNow=flippers.some(f=>f.held||f.pad);
   if(heldNow && !window.__flipHeld && performance.now()-(window.__flipT||0)>60){ window.__flipT=performance.now(); tone(flippers[0].held?450:495,0.07,'square',0.055); }
   window.__flipHeld=heldNow;
   for(const f of flippers){
@@ -959,7 +959,7 @@ function frame(t){
   while(!paused && acc>=fixed){
     for(const f of flippers){
       f.prev=f.cur;
-      const target=f.held?f.flip:f.rest;
+      const target=(f.held||f.pad)?f.flip:f.rest;
       f.cur+=clamp(target-f.cur,-0.9,0.9)*0.34;
     }
     stepPhysics(fixed);
@@ -969,6 +969,40 @@ function frame(t){
   draw();
   requestAnimationFrame(frame);
 }
+
+
+/* ---------- controle (gamepad) ----------
+   LB/RB (4/5) ou LT/RT (6/7) ou setas do direcional = maos
+   A (0) = lancar / tentar de novo    START (9) = pausa    B (1) = menu no fim */
+let padPrev={0:false,1:false,9:false}, padL=false, padR=false;
+function pollPad(){
+  const gps = (navigator.getGamepads && navigator.getGamepads()) || [];
+  let gp=null;
+  for(const p of gps){ if(p && p.connected){ gp=p; break; } }
+  if(gp){
+    const btn=function(i){ const b=gp.buttons[i]; return !!(b && (b.pressed || b.value>0.5)); };
+    const L = btn(4)||btn(6)||btn(14);
+    const R = btn(5)||btn(7)||btn(15);
+    flippers[0].pad=L; flippers[1].pad=R;
+    if((L && !padL) || (R && !padR)) vibrar(12);
+    padL=L; padR=R;
+
+    if(btn(0) && !padPrev[0]){
+      if(!paused && state==='ready') launch();
+      else if(!paused && state==='over') newGame();
+    }
+    if(btn(9) && !padPrev[9]){ paused=!paused; if(!paused) config=false; }
+    if(btn(1) && !padPrev[1] && state==='over'){
+      if(window.parent&&window.parent.go) window.parent.go('menu');
+      else location.href='menu.html';
+    }
+    padPrev[0]=btn(0); padPrev[1]=btn(1); padPrev[9]=btn(9);
+  } else {
+    flippers[0].pad=false; flippers[1].pad=false;
+  }
+  requestAnimationFrame(pollPad);
+}
+requestAnimationFrame(pollPad);
 
 (async function(){
   try{IMG.walls=await load(WALLS_SRC);}catch(e){}

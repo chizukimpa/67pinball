@@ -337,6 +337,27 @@ function frame(t){
   requestAnimationFrame(frame);
 }
 
+
+/* ---------- controle: A inicia o jogo ---------- */
+let padA=false;
+addEventListener('gamepadconnected',function(){ try{ toast('CONTROLE PRONTO'); }catch(e){} });
+function padMenu(){
+  const gps=(navigator.getGamepads && navigator.getGamepads()) || [];
+  let gp=null;
+  for(const p of gps){ if(p && p.connected){ gp=p; break; } }
+  if(gp){
+    const b=gp.buttons[0];
+    const a=!!(b && (b.pressed || b.value>0.5));
+    if(a && !padA){
+      if(window.parent&&window.parent.go) window.parent.go('mesa');
+      else location.href='mesa.html';
+    }
+    padA=a;
+  }
+  requestAnimationFrame(padMenu);
+}
+requestAnimationFrame(padMenu);
+
 load();buildMed();nuvemPull().then(nuvemPush);
 if(document.fonts&&FONT_B64){
   const f=new FontFace('PS2P','url(data:font/ttf;base64,'+FONT_B64+')');
