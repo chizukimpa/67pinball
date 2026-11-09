@@ -162,7 +162,8 @@ let paused=false, config=false, som=(localStorage.getItem('67mute')!=='1'),
     vibOn=(localStorage.getItem('67vib')!=='0'),
     volMus=parseFloat(localStorage.getItem('67vol')||'0.5');
 
-const perk={x:188,y:226,r:11,used:false,cool:0};
+const PERK_COOLDOWN=12;
+const perk={x:160,y:218,r:10,cool:0};
 const rollovers=[
   {x:90,y:96,w:26,h:9,lit:false,cool:0,label:'67'},
   {x:134,y:96,w:26,h:9,lit:false,cool:0,label:'67'}
@@ -173,7 +174,6 @@ function resetBall(){
   ball=makeBall(234,314,0,0,false);
   balls=[ball];
   state='ready';
-  perk.used=false; perk.cool=0;
   rollovers.forEach(r=>{r.lit=false;r.cool=0;});
   multiFlash=0;
 }
@@ -183,8 +183,8 @@ function spawnBall(x,y,vx,vy){
   return b;
 }
 function activateMultiball(){
-  if(perk.used || balls.length>=3) return;
-  perk.used=true; perk.cool=1.2; multiFlash=2.8;
+  if(perk.cool>0 || balls.length>=2) return;
+  perk.cool=PERK_COOLDOWN; multiFlash=2.8;
   spawnBall(125,78,(Math.random()-0.5)*70,20);
   score(1500);
   vibrar(80);
@@ -212,7 +212,7 @@ function andarTrilho(dt){
 }
 
 function launch(){ tone(210,0.26,'square',0.07,540);if(state!=='ready')return;ball.alive=true;state='play';ball.vx=0;ball.vy=0;ball.trilhoT=0;}
-function newGame(){aura=0;ballNum=1;multN=1;state='ready';drops.forEach(d=>d.down=false);resetBall();}
+function newGame(){aura=0;ballNum=1;multN=1;state='ready';drops.forEach(d=>d.down=false);resetBall();perk.cool=0;}
 
 // ---------- física ----------
 function segCollide(b,x1,y1,x2,y2,rest,omega){
@@ -341,7 +341,6 @@ function stepBallPhysics(dt){
   }
 
   // perk: alvo redondo que libera a segunda bola
-  perk.cool=Math.max(0,perk.cool-dt);
   const pdx=ball.x-perk.x, pdy=ball.y-perk.y;
   const pd=Math.hypot(pdx,pdy)||1;
   if(pd<ball.r+perk.r){
@@ -352,7 +351,7 @@ function stepBallPhysics(dt){
     const vn=ball.vx*nx+ball.vy*ny;
     if(vn<0){ ball.vx-=1.6*vn*nx; ball.vy-=1.6*vn*ny; }
     ball.vx+=nx*50; ball.vy+=ny*50;
-    if(!perk.used && perk.cool<=0) activateMultiball();
+    if(!perk.cool) activateMultiball();
   }
 
   // rollovers 67 no alto: nao bloqueiam, so acendem
@@ -447,6 +446,7 @@ function stepBallPhysics(dt){
 }
 
 function stepPhysics(dt){
+  perk.cool=Math.max(0,perk.cool-dt);
   for(const b of balls.slice()){
     ball=b;
     stepBallPhysics(dt);
@@ -522,17 +522,25 @@ function drawRollovers(){
   }
 }
 function drawPerk(T){
-  const on=!perk.used;
+  const ready=perk.cool<=0;
+  const progress=ready?1:1-perk.cool/PERK_COOLDOWN;
   const pulse=0.5+0.5*Math.sin(T*5);
-  if(on){
+  if(ready){
     ring(perk.x,perk.y,perk.r+5,'rgba(255,213,46,'+(0.12+0.16*pulse).toFixed(3)+')',2);
     ring(perk.x,perk.y,perk.r+8,'rgba(111,227,255,'+(0.06+0.09*pulse).toFixed(3)+')',1);
   }
   disc(perk.x,perk.y,perk.r+2,'#04060c');
-  disc(perk.x,perk.y,perk.r,on?'#ffd52e':'#2b2044');
+  disc(perk.x,perk.y,perk.r,ready?'#ffd52e':'#2b2044');
   disc(perk.x,perk.y,perk.r-2,'#120a24');
-  estrela(perk.x,perk.y-2,on?7:6,on?'#ffd52e':'#5a4a70');
-  txt(on?'PERK':'OFF',perk.x,perk.y+perk.r+3,on?'#ffd52e':'#9a94a8',5,'center');
+  estrela(perk.x,perk.y,ready?7:6,ready?'#ffd52e':'#5a4a70');
+  // aro de recarga: as luzinhas acendem ate o multiball voltar
+  for(let i=0;i<8;i++){
+    const a=-Math.PI/2+i*Math.PI/4;
+    const x=perk.x+Math.cos(a)*(perk.r+6);
+    const y=perk.y+Math.sin(a)*(perk.r+6);
+    const on=ready || (i/8 < progress);
+    disc(x,y,on?2:1,on?(ready?(i%2?'#6fe3ff':'#ffd52e'):'#6fe3ff'):'#3a3050');
+  }
 }
 
 function drawTable(){
