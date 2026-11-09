@@ -12,11 +12,14 @@
   #rankList::-webkit-scrollbar{width:calc(var(--u)*4)}
   #rankList::-webkit-scrollbar-track{background:#120a24}
   #rankList::-webkit-scrollbar-thumb{background:#ffd52e}
-  .rk{display:flex;align-items:center;height:calc(var(--u)*17);font-family:'PS2P',monospace;font-size:calc(var(--u)*5.5);line-height:1;color:#fff7e6}
+  .rk{display:flex;align-items:center;height:calc(var(--u)*19);font-family:'PS2P',monospace;font-size:calc(var(--u)*5.5);line-height:1;color:#fff7e6}
   .rk .pos{width:calc(var(--u)*12);padding-left:calc(var(--u)*2);color:#9a94a8}
-  .rk .nm{flex:1;color:#fff7e6;white-space:nowrap;overflow:hidden}
+  .rk .nm{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;line-height:1;overflow:hidden}
+  .rk .nm b{font-weight:400;white-space:nowrap;overflow:hidden;color:#fff7e6}
+  .rk .nm small{margin-top:calc(var(--u)*1);font-size:calc(var(--u)*5);line-height:1;color:#6fe3ff;white-space:nowrap;overflow:hidden}
   .rk.me{background:rgba(255,45,79,0.13)}
-  .rk.me .nm{color:#ff2d4f}
+  .rk.me .nm b{color:#ff2d4f}
+  .rk.me .nm small{color:#ffd52e}
   .rk.me .au{color:#ffd52e}
   .rk .au{width:calc(var(--u)*56);text-align:right;padding-right:calc(var(--u)*5);white-space:nowrap}
   .rk .ch{display:flex;gap:calc(var(--u)*2);padding-right:calc(var(--u)*2)}
@@ -195,10 +198,11 @@ function atualizarRanking(){
     const me=(q.n===S.name);
     let chips='';
     for(let j=0;j<9;j++) chips+='<i class="'+((q.ch&&q.ch[j])?'on':'')+'"></i>';
-    const aura=String(scoreTotal(q.a,q.ch)).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    const total=String(scoreTotal(q.a,q.ch)).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    const auraLiq=String(Math.max(0,Math.floor(Number(q.a)||0))).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
     return '<div class="rk'+(me?' me':'')+'"><span class="pos">'+(i+1)+'.</span>'+
-           '<span class="nm">'+String(q.n).slice(0,12)+'</span>'+
-           '<span class="au">'+aura+'</span>'+
+           '<span class="nm"><b>'+String(q.n).slice(0,12)+'</b><small>AURA '+auraLiq+'</small></span>'+
+           '<span class="au">'+total+'</span>'+
            '<span class="ch">'+chips+'</span></div>';
   }).join('');
 }
