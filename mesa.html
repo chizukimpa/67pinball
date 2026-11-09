@@ -125,7 +125,7 @@ function nearSegs(x,y,r){
 }
 
 // ---------- mesa (posições do template /2) ----------
-function makeBall(x,y,vx,vy,alive){return {x,y,vx,vy,r:5.5,alive:!!alive,trilhoT:-1,stuck:0,topStuck:0,portalCool:0};}
+function makeBall(x,y,vx,vy,alive){return {x,y,vx,vy,r:5.5,alive:!!alive,trilhoT:-1,stuck:0,topStuck:0,portalCool:0,nitro:0,nitroT:-1,nitroSide:0};}
 let ball=makeBall(234,314,0,0,false);
 let balls=[ball];
 const GRAV=620,MAXV=520;
@@ -164,6 +164,12 @@ let paused=false, config=false, som=(localStorage.getItem('67mute')!=='1'),
 
 const PERK_COOLDOWN=12;
 const perk={x:160,y:218,r:10,cool:0};
+const nitroPads=[{x:34,y:300,r:9},{x:200,y:300,r:9}];
+const NITRO_PATHS=[
+  [[34,300],[34,260],[34,220],[34,180],[36,150],[40,120],[52,92],[70,72],[92,60],[112,56],[125,55]],
+  [[200,300],[200,260],[200,220],[200,180],[198,150],[195,120],[182,92],[162,72],[142,60],[128,56],[125,55]]
+];
+let nitroCool=0;
 const rollovers=[
   {x:90,y:96,w:26,h:9,lit:false,cool:0,label:'67'},
   {x:134,y:96,w:26,h:9,lit:false,cool:0,label:'67'}
@@ -212,7 +218,20 @@ function andarTrilho(dt){
 }
 
 function launch(){ tone(210,0.26,'square',0.07,540);if(state!=='ready')return;ball.alive=true;state='play';ball.vx=0;ball.vy=0;ball.trilhoT=0;}
-function newGame(){aura=0;ballNum=1;multN=1;state='ready';drops.forEach(d=>d.down=false);resetBall();perk.cool=0;}
+function andarNitro(b,dt){
+  const path=NITRO_PATHS[b.nitroSide]||NITRO_PATHS[0];
+  b.nitroT += dt/0.6;
+  if(b.nitroT>=1){
+    b.nitroT=-1;
+    b.x=125; b.y=55; b.vx=(Math.random()-0.5)*80; b.vy=90;
+    tone(900,0.12,'square',0.05,1500);
+    return;
+  }
+  const n=path.length-1, f=b.nitroT*n, i=Math.min(n-1,Math.floor(f)), u=f-i;
+  b.x=path[i][0]+(path[i+1][0]-path[i][0])*u;
+  b.y=path[i][1]+(path[i+1][1]-path[i][1])*u;
+}
+function newGame(){aura=0;ballNum=1;multN=1;state='ready';drops.forEach(d=>d.down=false);resetBall();perk.cool=0;nitroCool=0;}
 
 // ---------- física ----------
 function segCollide(b,x1,y1,x2,y2,rest,omega){
@@ -306,6 +325,8 @@ function portaoCollide(){
 
 function stepBallPhysics(dt){
   if(!ball.alive)return;
+  ball.nitro=Math.max(0,ball.nitro-dt);
+  if(ball.nitroT>=0){ andarNitro(ball,dt); return; }
   if(andarTrilho(dt)) return;   // subindo o canal pelo trilho
 
   // move em passos pequenos (evita atravessar parede)
@@ -358,6 +379,23 @@ function stepBallPhysics(dt){
         melodia([784,988,1175,1568],55);
         flash(125,128,'67 BONUS',C.Y);
         rollovers.forEach(q=>{q.lit=false;q.cool=1.5;});
+      }
+    }
+  }
+
+  if(nitroCool<=0){
+    for(let side=0;side<nitroPads.length;side++){
+      const pad=nitroPads[side];
+      if(Math.hypot(ball.x-pad.x,ball.y-pad.y)<pad.r+ball.r){
+        nitroCool=1.5;
+        ball.nitro=0.9;
+        ball.nitroT=0;
+        ball.nitroSide=side;
+        tone(170,0.3,'sawtooth',0.08,900);
+        tone(760,0.11,'square',0.05,1400);
+        vibrar(50);
+        flash(pad.x,pad.y-12,'NITRO',C.C);
+        break;
       }
     }
   }
@@ -438,6 +476,7 @@ function stepBallPhysics(dt){
 
 function stepPhysics(dt){
   perk.cool=Math.max(0,perk.cool-dt);
+  nitroCool=Math.max(0,nitroCool-dt);
   for(const b of balls.slice()){
     ball=b;
     stepBallPhysics(dt);
@@ -482,7 +521,7 @@ function drawDecor(T){
   txt('SIX SEVEN',125,72,'#ffd52e',7,'center');
   R(95,82,60,1,'rgba(255,213,46,0.45)');
   // estrelas no campo
-  const pts=[[42,172],[207,172],[68,356],[182,356]];
+  const pts=[[42,172],[207,172]];
   for(let i=0;i<pts.length;i++){
     const q=pts[i];
     const a=0.18+0.22*(0.5+0.5*Math.sin(T*2+i*1.6));
@@ -490,12 +529,41 @@ function drawDecor(T){
     R(q[0]-3,q[1],7,1,'#6fe3ff'); R(q[0],q[1]-3,1,7,'#6fe3ff');
     c.globalAlpha=1;
   }
-  // lampadas na moldura
+  // lampadas na moldura (so na parte de cima/meio)
   for(let i=0;i<14;i++){
-    const y=52+i*23; if(y>376) break;
+    const y=52+i*23; if(y>300) break;
     const on=(Math.floor(T*8)+i)%4<2;
     const col=on?(i%2?'#ffd52e':'#6fe3ff'):'#2b2044';
     R(4,y,3,2,col); R(243,y,3,2,col);
+  }
+}
+function drawNitro(T){
+  const ready=nitroCool<=0;
+  const a=ready?0.18+0.12*(0.5+0.5*Math.sin(T*6)):0.05;
+  for(let side=0;side<NITRO_PATHS.length;side++){
+    const path=NITRO_PATHS[side];
+    for(let i=0;i<path.length-1;i++){
+      const x1=path[i][0],y1=path[i][1],x2=path[i+1][0],y2=path[i+1][1];
+      line_(x1,y1,x2,y2,'rgba(111,227,255,'+(a*0.4).toFixed(3)+')',1);
+      for(let k=0;k<0.999;k+=0.12){
+        const x=x1+(x2-x1)*k, y=y1+(y2-y1)*k;
+        R(x-1,y-1,2,2,'rgba(111,227,255,'+a.toFixed(3)+')');
+      }
+      if(i%2===0){
+        const mx=(x1+x2)/2, my=(y1+y2)/2;
+        R(mx-2,my,5,1,'rgba(111,227,255,'+(a*1.5).toFixed(3)+')');
+        R(mx-1,my+1,3,1,'rgba(111,227,255,'+(a*1.5).toFixed(3)+')');
+        R(mx,my+2,1,1,'rgba(111,227,255,'+(a*1.5).toFixed(3)+')');
+      }
+    }
+    const pad=nitroPads[side];
+    disc(pad.x,pad.y,10,'#04060c');
+    ring(pad.x,pad.y,9,ready?'#6fe3ff':'#2b2044',2);
+    disc(pad.x,pad.y,5,ready?'#20263f':'#120a24');
+    R(pad.x-3,pad.y-2,2,2,ready?'#6fe3ff':'#3a3050');
+    R(pad.x+1,pad.y-2,2,2,ready?'#6fe3ff':'#3a3050');
+    R(pad.x-1,pad.y-5,2,2,ready?'#6fe3ff':'#3a3050');
+    txt('NITRO',pad.x,pad.y+11,ready?'#6fe3ff':'#5a4a70',5,'center');
   }
 }
 function drawRollovers(){
@@ -645,6 +713,7 @@ function drawTable(){
   ring(22,330,6,'#6fe3ff',1);
   txt('P',20,327,'#6fe3ff',5);
 
+  drawNitro(T);
   drawRollovers();
   drawPerk(T);
 }
@@ -663,6 +732,12 @@ function drawFlippers(){
 function drawBall(){
   for(const b of balls){
     if(!b.alive&&state!=='ready')continue;
+    if(b.nitro>0){
+      for(let i=0;i<3;i++){
+        R(b.x-2+((i%2)?1:-1), b.y+7+i*4, 2, 4, i%2?'#6fe3ff':'#ffd52e');
+      }
+      ring(b.x,b.y,b.r+4,'rgba(111,227,255,0.3)',1);
+    }
     disc(b.x,b.y,b.r+2,'#04060c');
     disc(b.x,b.y,b.r,'#dfe4ec');
     ring(b.x,b.y,b.r-1,'rgba(111,227,255,0.5)',1);
