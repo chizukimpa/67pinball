@@ -340,19 +340,10 @@ function stepBallPhysics(dt){
     b.cool-=dt;
   }
 
-  // perk: alvo redondo que libera a segunda bola
+  // estrela do multiball: zona de power-up, a bola passa por cima
   const pdx=ball.x-perk.x, pdy=ball.y-perk.y;
   const pd=Math.hypot(pdx,pdy)||1;
-  if(pd<ball.r+perk.r){
-    let nx=pdx/pd, ny=pdy/pd;
-    if(pd<0.001){nx=0;ny=-1;}
-    ball.x=perk.x+nx*(perk.r+ball.r+0.5);
-    ball.y=perk.y+ny*(perk.r+ball.r+0.5);
-    const vn=ball.vx*nx+ball.vy*ny;
-    if(vn<0){ ball.vx-=1.6*vn*nx; ball.vy-=1.6*vn*ny; }
-    ball.vx+=nx*50; ball.vy+=ny*50;
-    if(!perk.cool) activateMultiball();
-  }
+  if(pd<ball.r+perk.r && !perk.cool) activateMultiball();
 
   // rollovers 67 no alto: nao bloqueiam, so acendem
   for(const r of rollovers){
