@@ -263,8 +263,9 @@ function draw(){
   R(0,43,W,2,C.Y);
   txt('SIX SEVEN',12,9,C.Y,15);
   txt('PINBALL',13,27,C.R,9);
-  txt('AURA TOTAL',238,8,C.C,5,'right');
-  txt(FMT(scoreTotal(S.aura,S.chips)),238,17,C.Y,12,'right');
+  txt('AURA',238,8,C.C,5,'right');
+  txt(FMT(S.aura),238,17,C.Y,12,'right');
+  txt('TOTAL '+FMT(scoreTotal(S.aura,S.chips)),238,32,C.C,5,'right');
 
   c.fillStyle='rgba(18,10,36,0.95)';c.fillRect(8,46,234,118);
   c.strokeStyle='#2b2044';c.lineWidth=1;c.strokeRect(8.5,46.5,233,117);

@@ -3,6 +3,7 @@ const { put, list, del } = require('@vercel/blob');
 const STORE = process.env.BLOB_STORE_ID;
 const PREFIX = 'players/';
 const PRICES = [670, 1700, 3400, 6700, 10000, 16700, 67000, 100000, 2000000];
+const MAX_VERSOES = 5;
 
 function limparNome(n) {
   return String(n || '').toUpperCase().replace(/[^A-Z0-9 ]/g, '').slice(0, 12).trim();
@@ -20,36 +21,94 @@ function normalizarChips(v) {
   return out;
 }
 
-async function lerUm(nome) {
-  const { blobs } = await list({ prefix: PREFIX + encodeURIComponent(nome) + '.json', storeId: STORE });
-  if (!blobs || !blobs.length) return { aura: 0, chips: zeros() };
+async function lerJson(blob) {
   try {
-    const r = await fetch(blobs[0].url + '?v=' + Date.now(), { cache: 'no-store' });
-    if (!r.ok) return { aura: 0, chips: zeros() };
-    const j = await r.json();
-    return { aura: Math.max(0, Math.floor(j.aura || 0)), chips: normalizarChips(j.chips) };
+    const r = await fetch(blob.url + '?v=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return null;
+    return await r.json();
   } catch (e) {
-    return { aura: 0, chips: zeros() };
+    return null;
   }
+}
+
+async function versoes(nome) {
+  const { blobs } = await list({
+    prefix: PREFIX + encodeURIComponent(nome),
+    storeId: STORE,
+    limit: 1000
+  });
+  return blobs || [];
+}
+
+async function lerUm(nome) {
+  const blobs = await versoes(nome);
+  const lidos = (await Promise.all(blobs.map(lerJson))).filter(function (j) {
+    return j && j.name === nome;
+  });
+  if (!lidos.length) return { aura: 0, chips: zeros(), ts: 0, exists: false };
+
+  lidos.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+  const j = lidos[0];
+  return {
+    aura: Math.max(0, Math.floor(j.aura || 0)),
+    chips: normalizarChips(j.chips),
+    ts: j.ts || 0,
+    exists: true
+  };
 }
 
 async function lerTodos() {
   const { blobs } = await list({ prefix: PREFIX, storeId: STORE, limit: 1000 });
+  const lidos = (await Promise.all((blobs || []).map(lerJson))).filter(Boolean);
   const players = {};
-  await Promise.all((blobs || []).map(async function (b) {
-    try {
-      const r = await fetch(b.url + '?v=' + Date.now(), { cache: 'no-store' });
-      if (!r.ok) return;
-      const j = await r.json();
-      if (j && j.name) players[j.name] = { aura: j.aura || 0, chips: normalizarChips(j.chips), ts: j.ts || 0 };
-    } catch (e) {}
-  }));
+
+  for (const j of lidos) {
+    if (!j || !j.name) continue;
+    const atual = players[j.name];
+    if (!atual || (j.ts || 0) > (atual.ts || 0)) {
+      players[j.name] = {
+        aura: Math.max(0, Math.floor(j.aura || 0)),
+        chips: normalizarChips(j.chips),
+        ts: j.ts || 0
+      };
+    }
+  }
   return players;
 }
 
+async function limparVersoes(nome, novoPath) {
+  try {
+    const blobs = await versoes(nome);
+    const ordenados = blobs.slice().sort(function (a, b) {
+      return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+    });
+    const manter = new Set([novoPath]);
+    for (const b of ordenados) {
+      if (manter.size >= MAX_VERSOES) break;
+      manter.add(b.pathname);
+    }
+    const apagar = ordenados.filter(function (b) { return !manter.has(b.pathname); });
+    if (apagar.length) {
+      await Promise.all(apagar.map(function (b) {
+        return del(b.url, { storeId: STORE }).catch(function () {});
+      }));
+    }
+  } catch (e) {}
+}
+
 async function gravar(nome, aura, chips) {
-  const dados = { name: nome, aura: Math.max(0, Math.floor(aura)), chips: normalizarChips(chips), ts: Date.now() };
-  await put(PREFIX + encodeURIComponent(nome) + '.json', JSON.stringify(dados), {
+  const dados = {
+    name: nome,
+    aura: Math.max(0, Math.floor(aura)),
+    chips: normalizarChips(chips),
+    ts: Date.now()
+  };
+
+  // arquivo novo a cada gravacao: evita o cache de 60s do blob sobrescrito
+  const pathname = PREFIX + encodeURIComponent(nome) + '-' + Date.now() + '-' +
+    Math.random().toString(36).slice(2, 7) + '.json';
+
+  const blob = await put(pathname, JSON.stringify(dados), {
     access: 'public',
     addRandomSuffix: false,
     allowOverwrite: true,
@@ -57,6 +116,8 @@ async function gravar(nome, aura, chips) {
     cacheControlMaxAge: 60,
     storeId: STORE
   });
+
+  await limparVersoes(nome, blob.pathname);
   return dados;
 }
 
@@ -84,6 +145,7 @@ module.exports = async function handler(req, res) {
       const atual = await lerUm(nome);
       let aura = atual.aura;
       let chips = atual.chips.slice();
+      let bought = false;
 
       // definir aura/fichas "na mao" so pelo admin (evita cliente antigo sobrescrever)
       const admin = (body.key === '67rank');
@@ -104,16 +166,28 @@ module.exports = async function handler(req, res) {
       if (body.addAura !== undefined && !isNaN(Number(body.addAura))) {
         aura = Math.max(0, aura + Math.floor(Number(body.addAura)));
       }
-      if (body.buy !== undefined) {
+
+      const comprando = (body.buy !== undefined);
+      if (comprando) {
         const i = Math.floor(Number(body.buy)) - 1;
         if (i >= 0 && i < 9 && !chips[i] && aura >= PRICES[i]) {
           aura -= PRICES[i];
           chips[i] = 1;
+          bought = true;
         }
       }
 
+      // compra recusada: devolve o estado atual sem criar uma versao nova
+      if (comprando && !bought && !admin && body.addAura === undefined) {
+        const player = atual.exists
+          ? { name: nome, aura: aura, chips: chips, ts: atual.ts }
+          : null;
+        res.status(200).json({ ok: true, bought: false, player: player });
+        return;
+      }
+
       const salvo = await gravar(nome, aura, chips);
-      res.status(200).json({ ok: true, player: salvo });
+      res.status(200).json({ ok: true, bought: bought, player: salvo });
       return;
     }
 
@@ -128,7 +202,10 @@ module.exports = async function handler(req, res) {
         res.status(400).json({ error: 'nome' });
         return;
       }
-      await del(PREFIX + encodeURIComponent(nome) + '.json', { storeId: STORE });
+      const blobs = await versoes(nome);
+      await Promise.all(blobs.map(function (b) {
+        return del(b.url, { storeId: STORE });
+      }));
       res.status(200).json({ ok: true, removido: nome });
       return;
     }
