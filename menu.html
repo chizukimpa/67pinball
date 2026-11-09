@@ -18,7 +18,7 @@
   .rk.me{background:rgba(255,45,79,0.13)}
   .rk.me .nm{color:#ff2d4f}
   .rk.me .au{color:#ffd52e}
-  .rk .au{width:calc(var(--u)*47);text-align:right;padding-right:calc(var(--u)*5);white-space:nowrap}
+  .rk .au{width:calc(var(--u)*56);text-align:right;padding-right:calc(var(--u)*5);white-space:nowrap}
   .rk .ch{display:flex;gap:calc(var(--u)*2);padding-right:calc(var(--u)*2)}
   .rk .ch i{display:block;width:calc(var(--u)*6);height:calc(var(--u)*6);background:#3a3050}
   .rk .ch i.on{background:#ffd52e}
@@ -58,6 +58,14 @@ const SAVE_KEY='aura67.profile';
 let state='menu';
 let S={name:'JOGADOR',aura:12340,chips:[1,1,1,1,1,0,0,0,0],best:12340,muted:false};
 let editing=false, caretOn=true, hover=null, pressed=null, toastTimer=0, nameBuf='';
+
+// valor de cada ficha no ranking: aura + o preco de tudo que a pessoa ja comprou
+const CHIP_PRICES=[670, 1700, 3400, 6700, 10000, 16700, 67000, 100000, 2000000];
+function scoreTotal(aura,chips){
+  let v=Number(aura||0);
+  for(let i=0;i<CHIP_PRICES.length;i++) if(chips && chips[i]) v+=CHIP_PRICES[i];
+  return v;
+}
 
 const BTN={
   jogar:{x:36,y:290,w:122,h:56,label:'JOGAR',color:C.Y,size:14},
@@ -174,8 +182,8 @@ function atualizarRanking(){
   let achou=false;
   todos.forEach(q=>{ if(q.n===S.name){ q.a=S.aura; q.ch=S.chips; achou=true; } });
   if(!achou) todos.push({n:S.name,a:S.aura,ch:S.chips});
-  const qtdFichas=function(q){ let n=0; for(let j=0;j<9;j++) if(q.ch && q.ch[j]) n++; return n; };
-  todos.sort(function(a,b){ return (qtdFichas(b)-qtdFichas(a)) || (b.a-a.a); });
+  const total=function(q){ return scoreTotal(q.a,q.ch); };
+  todos.sort(function(a,b){ return (total(b)-total(a)) || (b.a-a.a); });
 
   const sig=todos.map(q=>q.n+':'+q.a+':'+((q.ch||[]).join(''))).join('|');
   if(sig===rankSig) return;
@@ -187,7 +195,7 @@ function atualizarRanking(){
     const me=(q.n===S.name);
     let chips='';
     for(let j=0;j<9;j++) chips+='<i class="'+((q.ch&&q.ch[j])?'on':'')+'"></i>';
-    const aura=String(q.a).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    const aura=String(scoreTotal(q.a,q.ch)).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
     return '<div class="rk'+(me?' me':'')+'"><span class="pos">'+(i+1)+'.</span>'+
            '<span class="nm">'+String(q.n).slice(0,12)+'</span>'+
            '<span class="au">'+aura+'</span>'+
@@ -256,12 +264,12 @@ function draw(){
   txt('SIX SEVEN',12,9,C.Y,15);
   txt('PINBALL',13,27,C.R,9);
   txt('AURA TOTAL',238,8,C.C,5,'right');
-  txt(FMT(S.aura),238,17,C.Y,12,'right');
+  txt(FMT(scoreTotal(S.aura,S.chips)),238,17,C.Y,12,'right');
 
   c.fillStyle='rgba(18,10,36,0.95)';c.fillRect(8,46,234,118);
   c.strokeStyle='#2b2044';c.lineWidth=1;c.strokeRect(8.5,46.5,233,117);
   txt('RANKING',16,51,C.C,6);
-  txt('AURA',150,51,C.Y,6,'right');
+  txt('TOTAL',164,51,C.Y,6,'right');
   txt('FICHAS',236,51,C.Y,6,'right');
   atualizarRanking();
 

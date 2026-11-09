@@ -18,10 +18,17 @@
 <body>
 <h1>67 PINBALL - BANCO DE DADOS</h1>
 <div style="margin:0 16px 12px">Nome: <input type="text" id="novoNome" placeholder="NOME"> Aura: <input type="number" id="novoAura" value="0"> <button onclick="addNovo()">ADICIONAR</button></div>
-<table><thead><tr><th>#</th><th>Nome</th><th>Aura</th><th>Fichas</th><th></th></tr></thead><tbody id="tb"></tbody></table>
+<table><thead><tr><th>#</th><th>Nome</th><th>Aura</th><th>Total</th><th>Fichas</th><th></th></tr></thead><tbody id="tb"></tbody></table>
 <div id="msg"></div>
 <script>
 const API='/api/rank';
+const PRICES=[670, 1700, 3400, 6700, 10000, 16700, 67000, 100000, 2000000];
+function totalPlayer(p){
+  let v=Number(p.aura||0);
+  (p.chips||[]).forEach((on,i)=>{ if(on) v+=PRICES[i]||0; });
+  return v;
+}
+function fmt(v){ return String(v).replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
 let dados={};
 function msg(t){ const m=document.getElementById('msg'); m.textContent=t; setTimeout(()=>m.textContent='',2500); }
 async function carregar(){
@@ -32,8 +39,8 @@ async function carregar(){
 }
 function render(){
   const nomes=Object.keys(dados).sort((a,b)=>{
-    const fa=f=>f.chips.reduce((s,v)=>s+(v?1:0),0);
-    return (fa(dados[b])-fa(dados[a])) || (dados[b].aura-dados[a].aura);
+    const ta=totalPlayer(dados[a]), tb=totalPlayer(dados[b]);
+    return (tb-ta) || (dados[b].aura-dados[a].aura);
   });
   const tb=document.getElementById('tb');
   tb.innerHTML=nomes.map((n,i)=>{
@@ -43,6 +50,7 @@ function render(){
     return '<tr><td>'+(i+1)+'</td>'+
       '<td><input type="text" value="'+n+'" data-ren="'+n+'" size="12"></td>'+
       '<td><input type="number" value="'+p.aura+'" data-aura="'+n+'"></td>'+
+      '<td>'+fmt(totalPlayer(p))+'</td>'+
       '<td class="chips">'+chips+'</td>'+
       '<td><button onclick="salvar(\''+n+'\')">SALVAR</button><button class="del" onclick="apagar(\''+n+'\')">X</button></td></tr>';
   }).join('');
