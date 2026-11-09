@@ -524,37 +524,23 @@ function drawDecor(T){
     const q=pts[i];
     const a=0.18+0.22*(0.5+0.5*Math.sin(T*2+i*1.6));
     c.globalAlpha=a;
-    R(q[0]-3,q[1],7,1,'#6fe3ff'); R(q[0],q[1]-3,1,7,'#6fe3ff');
+    R(q[0]-3,q[1],7,1,'#ffd52e'); R(q[0],q[1]-3,1,7,'#ffd52e');
     c.globalAlpha=1;
   }
   // lampadas na moldura (so na parte de cima/meio)
   for(let i=0;i<14;i++){
     const y=52+i*23; if(y>300) break;
     const on=(Math.floor(T*8)+i)%4<2;
-    const col=on?(i%2?'#ffd52e':'#6fe3ff'):'#2b2044';
+    const col=on?(i%2?'#ffd52e':'#fff7e6'):'#2b2044';
     R(4,y,3,2,col); R(243,y,3,2,col);
   }
 }
 function drawNitro(T){
   const ready=nitroCool<=0;
-  const a=ready?0.18+0.12*(0.5+0.5*Math.sin(T*6)):0.05;
-  for(let side=0;side<NITRO_PATHS.length;side++){
-    const path=NITRO_PATHS[side];
-    for(let i=0;i<path.length-1;i++){
-      const x1=path[i][0],y1=path[i][1],x2=path[i+1][0],y2=path[i+1][1];
-      line_(x1,y1,x2,y2,'rgba(111,227,255,'+(a*0.4).toFixed(3)+')',1);
-      for(let k=0;k<0.999;k+=0.12){
-        const x=x1+(x2-x1)*k, y=y1+(y2-y1)*k;
-        R(x-1,y-1,2,2,'rgba(111,227,255,'+a.toFixed(3)+')');
-      }
-      if(i%2===0){
-        const mx=(x1+x2)/2, my=(y1+y2)/2;
-        R(mx-2,my,5,1,'rgba(111,227,255,'+(a*1.5).toFixed(3)+')');
-        R(mx-1,my+1,3,1,'rgba(111,227,255,'+(a*1.5).toFixed(3)+')');
-        R(mx,my+2,1,1,'rgba(111,227,255,'+(a*1.5).toFixed(3)+')');
-      }
-    }
+  const pulse=0.5+0.5*Math.sin(T*6);
+  for(let side=0;side<nitroPads.length;side++){
     const pad=nitroPads[side];
+    if(ready) ring(pad.x,pad.y,12,'rgba(111,227,255,'+(0.12+0.08*pulse).toFixed(3)+')',1);
     disc(pad.x,pad.y,10,'#04060c');
     ring(pad.x,pad.y,9,ready?'#6fe3ff':'#2b2044',2);
     disc(pad.x,pad.y,5,ready?'#20263f':'#120a24');
@@ -580,24 +566,14 @@ function drawRollovers(){
 }
 function drawPerk(T){
   const ready=perk.cool<=0;
-  const progress=ready?1:1-perk.cool/PERK_COOLDOWN;
   const pulse=0.5+0.5*Math.sin(T*5);
   if(ready){
     ring(perk.x,perk.y,perk.r+5,'rgba(255,213,46,'+(0.12+0.16*pulse).toFixed(3)+')',2);
-    ring(perk.x,perk.y,perk.r+8,'rgba(111,227,255,'+(0.06+0.09*pulse).toFixed(3)+')',1);
   }
   disc(perk.x,perk.y,perk.r+2,'#04060c');
   disc(perk.x,perk.y,perk.r,ready?'#ffd52e':'#2b2044');
   disc(perk.x,perk.y,perk.r-2,'#120a24');
   estrela(perk.x,perk.y,ready?7:6,ready?'#ffd52e':'#5a4a70');
-  // aro de recarga: as luzinhas acendem ate o multiball voltar
-  for(let i=0;i<8;i++){
-    const a=-Math.PI/2+i*Math.PI/4;
-    const x=perk.x+Math.cos(a)*(perk.r+6);
-    const y=perk.y+Math.sin(a)*(perk.r+6);
-    const on=ready || (i/8 < progress);
-    disc(x,y,on?2:1,on?(ready?(i%2?'#6fe3ff':'#ffd52e'):'#6fe3ff'):'#3a3050');
-  }
 }
 
 function drawTable(){
