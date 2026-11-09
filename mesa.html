@@ -540,14 +540,14 @@ function drawNitro(T){
   const pulse=0.5+0.5*Math.sin(T*6);
   for(let side=0;side<nitroPads.length;side++){
     const pad=nitroPads[side];
-    if(ready) ring(pad.x,pad.y,12,'rgba(111,227,255,'+(0.12+0.08*pulse).toFixed(3)+')',1);
+    if(ready) ring(pad.x,pad.y,12,'rgba(255,138,30,'+(0.12+0.08*pulse).toFixed(3)+')',1);
     disc(pad.x,pad.y,10,'#04060c');
-    ring(pad.x,pad.y,9,ready?'#6fe3ff':'#2b2044',2);
+    ring(pad.x,pad.y,9,ready?'#ff8a1e':'#2b2044',2);
     disc(pad.x,pad.y,5,ready?'#20263f':'#120a24');
-    R(pad.x-3,pad.y-2,2,2,ready?'#6fe3ff':'#3a3050');
-    R(pad.x+1,pad.y-2,2,2,ready?'#6fe3ff':'#3a3050');
-    R(pad.x-1,pad.y-5,2,2,ready?'#6fe3ff':'#3a3050');
-    txt('NITRO',pad.x,pad.y+11,ready?'#6fe3ff':'#5a4a70',5,'center');
+    R(pad.x-3,pad.y-2,2,2,ready?'#ffd52e':'#3a3050');
+    R(pad.x+1,pad.y-2,2,2,ready?'#ffd52e':'#3a3050');
+    R(pad.x-1,pad.y-5,2,2,ready?'#ffd52e':'#3a3050');
+    txt('NITRO',pad.x,pad.y+11,ready?'#ffd52e':'#5a4a70',5,'center');
   }
 }
 function drawRollovers(){
