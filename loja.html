@@ -174,7 +174,9 @@ function fecharMeme(){ memeBox.classList.remove('on'); memeVid.pause(); }
 function mostrarMeme(i){
   memeVid.src='vid/'+i+'.mp4';
   memeVid.loop=true;
-  memeVid.muted=(localStorage.getItem('67mute')==='1');
+  // o som do clipe segue os EFEITOS, nao o mute da musica
+  memeVid.muted=(localStorage.getItem('67sfx')==='0');
+  memeVid.volume=0.9;
   try{ memeVid.currentTime=0; }catch(e){}
   memeBox.classList.add('on');
   const pr=memeVid.play();
