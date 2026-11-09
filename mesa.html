@@ -343,7 +343,9 @@ function stepPhysics(dt){
   for(const f of flippers){
     const ang=f.right?(Math.PI-f.cur):f.cur;
     const tx=f.px+Math.cos(ang)*f.len,ty=f.py+Math.sin(ang)*f.len;
-    const omega=(f.cur-f.prev)/Math.max(dt,1/240);
+    const spinVel=(f.cur-f.prev)/Math.max(dt,1/240);
+    // a mao direita e espelhada (ang = PI - cur): o omega do mundo inverte
+    const omega=f.right?-spinVel:spinVel;
     segCollide(ball,f.px,f.py,tx,ty,0.85,omega);
   }
   window.__pad=5;
