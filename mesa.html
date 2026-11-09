@@ -125,7 +125,7 @@ function nearSegs(x,y,r){
 }
 
 // ---------- mesa (posições do template /2) ----------
-function makeBall(x,y,vx,vy,alive){return {x,y,vx,vy,r:5.5,alive:!!alive,trilhoT:-1,stuck:0,topStuck:0,portalCool:0,nitro:0,nitroT:-1,nitroSide:0};}
+function makeBall(x,y,vx,vy,alive){return {x,y,vx,vy,r:5.5,alive:!!alive,trilhoT:-1,stuck:0,topStuck:0,portalCool:0,nitroT:-1,nitroSide:0};}
 let ball=makeBall(234,314,0,0,false);
 let balls=[ball];
 const GRAV=620,MAXV=520;
@@ -325,7 +325,6 @@ function portaoCollide(){
 
 function stepBallPhysics(dt){
   if(!ball.alive)return;
-  ball.nitro=Math.max(0,ball.nitro-dt);
   if(ball.nitroT>=0){ andarNitro(ball,dt); return; }
   if(andarTrilho(dt)) return;   // subindo o canal pelo trilho
 
@@ -388,7 +387,6 @@ function stepBallPhysics(dt){
       const pad=nitroPads[side];
       if(Math.hypot(ball.x-pad.x,ball.y-pad.y)<pad.r+ball.r){
         nitroCool=1.5;
-        ball.nitro=0.9;
         ball.nitroT=0;
         ball.nitroSide=side;
         tone(170,0.3,'sawtooth',0.08,900);
@@ -732,12 +730,6 @@ function drawFlippers(){
 function drawBall(){
   for(const b of balls){
     if(!b.alive&&state!=='ready')continue;
-    if(b.nitro>0){
-      for(let i=0;i<3;i++){
-        R(b.x-2+((i%2)?1:-1), b.y+7+i*4, 2, 4, i%2?'#6fe3ff':'#ffd52e');
-      }
-      ring(b.x,b.y,b.r+4,'rgba(111,227,255,0.3)',1);
-    }
     disc(b.x,b.y,b.r+2,'#04060c');
     disc(b.x,b.y,b.r,'#dfe4ec');
     ring(b.x,b.y,b.r-1,'rgba(111,227,255,0.5)',1);
