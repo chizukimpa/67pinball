@@ -1,9 +1,24 @@
-const { put, list, del } = require('@vercel/blob');
+const { put, head, list, del } = require('@vercel/blob');
+
+/*
+ * Ranking do 67 Pinball.
+ *
+ * Primario: Upstash Redis (REST, sem SDK): 1 comando por leitura, 2 por gravacao,
+ * zero operacoes de Blob.
+ * Fallback: Vercel Blob (quando as variaveis do Redis nao existem): caminho fixo
+ * por jogador, 1 operacao avancada por gravacao e lista em cache na leitura.
+ */
 
 const STORE = process.env.BLOB_STORE_ID;
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || '';
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
+const USE_REDIS = Boolean(REDIS_URL && REDIS_TOKEN);
+const REDIS_KEY = '67rank:players';
+const REDIS_MIGRADO = '67rank:migrated';
+
 const PREFIX = 'players/';
 const PRICES = [670, 1700, 3400, 6700, 10000, 16700, 67000, 100000, 2000000];
-const MAX_VERSOES = 5;
+const CACHE_LISTA_MS = 30000;
 
 function limparNome(n) {
   return String(n || '').toUpperCase().replace(/[^A-Z0-9 ]/g, '').slice(0, 12).trim();
@@ -21,9 +36,55 @@ function normalizarChips(v) {
   return out;
 }
 
-async function lerJson(blob) {
+function normalizar(j) {
+  return {
+    aura: Math.max(0, Math.floor(Number(j && j.aura) || 0)),
+    chips: normalizarChips(j && j.chips),
+    ts: Number(j && j.ts) || 0
+  };
+}
+
+/* ---------- Redis (Upstash REST) ---------- */
+
+async function cmd(args) {
+  const res = await fetch(REDIS_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + REDIS_TOKEN,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(args),
+    cache: 'no-store'
+  });
+  if (!res.ok) throw new Error('redis http ' + res.status);
+  const json = await res.json();
+  if (json && json.error) throw new Error('redis: ' + json.error);
+  return json ? json.result : null;
+}
+
+function paresParaMapa(arr) {
+  const out = {};
+  const lista = arr || [];
+  for (let i = 0; i + 1 < lista.length; i += 2) {
+    try {
+      const j = JSON.parse(lista[i + 1]);
+      if (j && j.name) out[j.name] = normalizar(j);
+    } catch (e) {}
+  }
+  return out;
+}
+
+/* ---------- Blob (fallback e migracao) ---------- */
+
+let cacheLista = null;
+
+function caminho(nome) {
+  return PREFIX + encodeURIComponent(nome) + '.json';
+}
+
+async function lerJsonUrl(url) {
   try {
-    const r = await fetch(blob.url + '?v=' + Date.now(), { cache: 'no-store' });
+    const r = await fetch(url + '?v=' + Date.now(), { cache: 'no-store' });
     if (!r.ok) return null;
     return await r.json();
   } catch (e) {
@@ -31,69 +92,135 @@ async function lerJson(blob) {
   }
 }
 
-async function versoes(nome) {
-  const { blobs } = await list({
-    prefix: PREFIX + encodeURIComponent(nome),
-    storeId: STORE,
-    limit: 1000
-  });
-  return blobs || [];
-}
+async function blobLerTodos() {
+  if (cacheLista && Date.now() - cacheLista.em < CACHE_LISTA_MS) return cacheLista.dados;
 
-async function lerUm(nome) {
-  const blobs = await versoes(nome);
-  const lidos = (await Promise.all(blobs.map(lerJson))).filter(function (j) {
-    return j && j.name === nome;
-  });
-  if (!lidos.length) return { aura: 0, chips: zeros(), ts: 0, exists: false };
-
-  lidos.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-  const j = lidos[0];
-  return {
-    aura: Math.max(0, Math.floor(j.aura || 0)),
-    chips: normalizarChips(j.chips),
-    ts: j.ts || 0,
-    exists: true
-  };
-}
-
-async function lerTodos() {
   const { blobs } = await list({ prefix: PREFIX, storeId: STORE, limit: 1000 });
-  const lidos = (await Promise.all((blobs || []).map(lerJson))).filter(Boolean);
-  const players = {};
+  const lidos = (await Promise.all((blobs || []).map(function (b) {
+    return lerJsonUrl(b.url);
+  }))).filter(Boolean);
 
+  const players = {};
   for (const j of lidos) {
     if (!j || !j.name) continue;
     const atual = players[j.name];
     if (!atual || (j.ts || 0) > (atual.ts || 0)) {
-      players[j.name] = {
-        aura: Math.max(0, Math.floor(j.aura || 0)),
-        chips: normalizarChips(j.chips),
-        ts: j.ts || 0
-      };
+      players[j.name] = normalizar(j);
     }
   }
+
+  cacheLista = { em: Date.now(), dados: players };
   return players;
 }
 
-async function limparVersoes(nome, novoPath) {
+async function blobLerUm(nome) {
   try {
-    const blobs = await versoes(nome);
-    const ordenados = blobs.slice().sort(function (a, b) {
-      return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
-    });
-    const manter = new Set([novoPath]);
-    for (const b of ordenados) {
-      if (manter.size >= MAX_VERSOES) break;
-      manter.add(b.pathname);
-    }
-    const apagar = ordenados.filter(function (b) { return !manter.has(b.pathname); });
-    if (apagar.length) {
-      await Promise.all(apagar.map(function (b) {
-        return del(b.url, { storeId: STORE }).catch(function () {});
-      }));
-    }
+    const meta = await head(caminho(nome), { storeId: STORE });
+    const j = await lerJsonUrl(meta.url);
+    if (!j || j.name !== nome) return null;
+    return normalizar(j);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function blobSalvar(nome, dados) {
+  await put(caminho(nome), JSON.stringify({ name: nome, aura: dados.aura, chips: dados.chips, ts: dados.ts }), {
+    access: 'public',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: 'application/json',
+    cacheControlMaxAge: 60,
+    storeId: STORE
+  });
+  cacheLista = null;
+}
+
+async function blobRemover(nome) {
+  try {
+    await del(caminho(nome), { storeId: STORE });
   } catch (e) {}
+  cacheLista = null;
+}
+
+/* ---------- Migracao unica: Blob antigo -> Redis ---------- */
+
+let migracao = null;
+
+function migrarSePreciso() {
+  if (!USE_REDIS) return Promise.resolve();
+  if (migracao) return migracao;
+
+  migracao = (async function () {
+    const ja = await cmd(['GET', REDIS_MIGRADO]);
+    if (ja) return;
+
+    let antigos = {};
+    try {
+      antigos = await blobLerTodos();
+    } catch (e) {
+      console.warn('rank: falha lendo blob antigo na migracao:', String(e && e.message ? e.message : e));
+    }
+
+    const nomes = Object.keys(antigos);
+    for (const nome of nomes) {
+      // HSETNX: nunca sobrescreve um placar que ja chegou no Redis
+      await cmd(['HSETNX', REDIS_KEY, nome, JSON.stringify({ name: nome, aura: antigos[nome].aura, chips: antigos[nome].chips, ts: antigos[nome].ts })]);
+    }
+    await cmd(['SET', REDIS_MIGRADO, '1']);
+    console.log('rank: migracao concluida, ' + nomes.length + ' jogadores');
+  })().catch(function (e) {
+    migracao = null;
+    throw e;
+  });
+
+  return migracao;
+}
+
+/* ---------- Fachada de armazenamento ---------- */
+
+async function carregarTodos() {
+  if (!USE_REDIS) return blobLerTodos();
+  await migrarSePreciso();
+  return paresParaMapa(await cmd(['HGETALL', REDIS_KEY]));
+}
+
+async function carregarUm(nome) {
+  if (!USE_REDIS) return blobLerUm(nome);
+  await migrarSePreciso();
+  const raw = await cmd(['HGET', REDIS_KEY, nome]);
+  if (!raw) return null;
+  try {
+    const j = JSON.parse(raw);
+    return j ? normalizar(j) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function salvar(nome, dados) {
+  const json = JSON.stringify({ name: nome, aura: dados.aura, chips: dados.chips, ts: dados.ts });
+  if (USE_REDIS) {
+    await cmd(['HSET', REDIS_KEY, nome, json]);
+    return;
+  }
+  await blobSalvar(nome, dados);
+}
+
+async function remover(nome) {
+  if (USE_REDIS) {
+    await cmd(['HDEL', REDIS_KEY, nome]);
+    return;
+  }
+  await blobRemover(nome);
+}
+
+/* ---------- Regras do jogo ---------- */
+
+async function lerUm(nome) {
+  const p = await carregarUm(nome);
+  if (!p) return { aura: 0, chips: zeros(), ts: 0, exists: false };
+  return { aura: p.aura, chips: p.chips.slice(), ts: p.ts, exists: true };
 }
 
 async function gravar(nome, aura, chips) {
@@ -103,21 +230,7 @@ async function gravar(nome, aura, chips) {
     chips: normalizarChips(chips),
     ts: Date.now()
   };
-
-  // arquivo novo a cada gravacao: evita o cache de 60s do blob sobrescrito
-  const pathname = PREFIX + encodeURIComponent(nome) + '-' + Date.now() + '-' +
-    Math.random().toString(36).slice(2, 7) + '.json';
-
-  const blob = await put(pathname, JSON.stringify(dados), {
-    access: 'public',
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: 'application/json',
-    cacheControlMaxAge: 60,
-    storeId: STORE
-  });
-
-  await limparVersoes(nome, blob.pathname);
+  await salvar(nome, dados);
   return dados;
 }
 
@@ -125,7 +238,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   try {
     if (req.method === 'GET') {
-      res.status(200).json({ players: await lerTodos() });
+      res.status(200).json({ players: await carregarTodos() });
       return;
     }
 
@@ -202,10 +315,7 @@ module.exports = async function handler(req, res) {
         res.status(400).json({ error: 'nome' });
         return;
       }
-      const blobs = await versoes(nome);
-      await Promise.all(blobs.map(function (b) {
-        return del(b.url, { storeId: STORE });
-      }));
+      await remover(nome);
       res.status(200).json({ ok: true, removido: nome });
       return;
     }
